@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vk_types.h>
+#include <vk_mesh.h>
 
 // #define GLFW_INCLUDE_VULKAN
 
@@ -26,6 +27,19 @@
 struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
 
+class PipelineBuilder {
+public:
+    std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
+    VkPipelineVertexInputStateCreateInfo vertexInput;
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly;
+    VkPipelineViewportStateCreateInfo viewportState;
+    VkPipelineRasterizationStateCreateInfo rasterizer;
+    VkPipelineColorBlendStateCreateInfo colorBlend;
+    VkPipelineMultisampleStateCreateInfo multisampling;
+    VkPipelineDepthStencilStateCreateInfo depthStencil;
+
+    void build_pipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
+};
 
 
 class VulkanEngine {
