@@ -1,7 +1,7 @@
 #include <vk_mesh.h>
 #include <util.h>
 
-#include <array>
+#include <vector>
 
 std::vector<VkVertexInputBindingDescription> Vertex::getBindingDescriptions() {
 	std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
@@ -10,7 +10,7 @@ std::vector<VkVertexInputBindingDescription> Vertex::getBindingDescriptions() {
 	bindingDescription.binding = 0;
 	bindingDescription.stride = sizeof(Vertex);
 	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	bindingDescriptions.push_back(bindingDescription);
+	bindingDescriptions.emplace_back(bindingDescription);
 	return bindingDescriptions;
 }
 
@@ -39,9 +39,9 @@ std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions(
 	texCoordAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
 	texCoordAttributeDescription.offset = offsetof(Vertex, texCoord);
 
-	attributeDescriptions.push_back(posAttributeDescription);
-	attributeDescriptions.push_back(colorAttributeDescription);
-	attributeDescriptions.push_back(texCoordAttributeDescription);
+	attributeDescriptions.emplace_back(posAttributeDescription);
+	attributeDescriptions.emplace_back(colorAttributeDescription);
+	attributeDescriptions.emplace_back(texCoordAttributeDescription);
 
 	return attributeDescriptions;
 }

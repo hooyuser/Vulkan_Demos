@@ -8,8 +8,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/hash.hpp>
 
-
 #include <optional>
+
+typedef enum CreateResourceFlagBits {
+    TEMP_BIT = 0x00000000,
+    BEFORE_SWAPCHAIN_BIT = 0x00000001,
+    AFTER_SWAPCHAIN_BIT = 0x00000003,
+} CreateResourceFlagBits;
+
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
@@ -25,4 +31,5 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
 };
+
 
