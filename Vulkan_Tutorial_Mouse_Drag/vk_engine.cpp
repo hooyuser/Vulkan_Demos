@@ -72,6 +72,10 @@ namespace std {
 	};
 }
 
+SphericalCoord camSphericalCoord{ glm::radians(45.0f) ,glm::radians(54.0f),3.46f,glm::vec3(0.0f) };
+Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
+glm::vec2 VulkanEngine::mousePreviousPos = glm::vec2(0.0);
+glm::vec2 VulkanEngine::mouseDeltaPos = glm::vec2(0.0);
 
 
 void VulkanEngine::initWindow() {
@@ -82,6 +86,14 @@ void VulkanEngine::initWindow() {
 	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+
+	double xpos, ypos;
+	glfwGetCursorPos(window, &xpos, &ypos);
+	mousePreviousPos.x = xpos;
+	mousePreviousPos.y = ypos;
+	glfwSetCursorPosCallback(window, mouseCursorCallback);
+	glfwSetMouseButtonCallback(window, mouseButtonCallback);
+	glfwSetScrollCallback(window, mouseScrollCallback);
 }
 
 void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
@@ -115,6 +127,9 @@ void VulkanEngine::initVulkan() {
 	createDescriptorSets();//recreateSwapChain
 	createCommandBuffers();//recreateSwapChain
 	createSyncObjects();
+
+	setCamera();
+
 	isInitialized = true;
 }
 
@@ -169,6 +184,7 @@ void VulkanEngine::recreateSwapChain() {
 	createDescriptorPool();
 	createDescriptorSets();
 	createCommandBuffers();
+	setCamera();
 
 	imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
 }
@@ -507,9 +523,9 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	VkViewport viewport{};
 	viewport.x = 0.0f;
-	viewport.y = 0.0f;
+	viewport.y = (float)swapChainExtent.height;
 	viewport.width = (float)swapChainExtent.width;
-	viewport.height = (float)swapChainExtent.height;
+	viewport.height = - (float)swapChainExtent.height;
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
@@ -1170,6 +1186,8 @@ void VulkanEngine::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
+
+
 void VulkanEngine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1267,10 +1285,12 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
 	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-	ubo.proj[1][1] *= -1;
+	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+	ubo.view = camera.viewMatrix();
+	ubo.proj = camera.projMatrix();
+	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+	//ubo.proj[1][1] *= -1;
 
 	void* data;
 	vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
@@ -1550,6 +1570,38 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debugCallback(VkDebugUtilsMessageSe
 	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
 	return VK_FALSE;
+}
+
+void VulkanEngine::mouseCursorCallback(GLFWwindow* window, double xpos, double ypos)
+{
+
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_RELEASE)
+	{
+		return;
+	}
+	auto mouseCurrentPos = glm::vec2(xpos, ypos);
+	mouseDeltaPos = mouseCurrentPos - mousePreviousPos;
+	camera.rotate(- mouseDeltaPos.x, -mouseDeltaPos.y, 0.005f);
+	mousePreviousPos = mouseCurrentPos;
+}
+
+void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+		double xpos, ypos;
+		glfwGetCursorPos(window, &xpos, &ypos);
+		mousePreviousPos.x = xpos;
+		mousePreviousPos.y = ypos;
+	}
+}
+
+void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+	camera.zoom((float)yoffset, 0.3f);
+}
+
+void VulkanEngine::setCamera()
+{
+	camera.aspectRatio = swapChainExtent.width / (float)swapChainExtent.height;
 }
 
 
