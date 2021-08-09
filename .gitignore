@@ -5,6 +5,7 @@
 
 *.hdr
 *.exr
+*.exe
 
 # User-specific files
 *.rsuser
