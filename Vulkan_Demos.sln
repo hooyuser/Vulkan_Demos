@@ -3,9 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Vulkan_Tutorial", "Vulkan_Tutorial\Vulkan_Tutorial.vcxproj", "{81EFED9A-C619-459C-A1D0-117544CE2F3E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "001_Vulkan_Tutorial", "Vulkan_Tutorial\Vulkan_Tutorial.vcxproj", "{81EFED9A-C619-459C-A1D0-117544CE2F3E}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Vulkan_Tutorial_Mouse_Drag", "Vulkan_Tutorial_Mouse_Drag\Vulkan_Tutorial_Mouse_Drag.vcxproj", "{EEA4C116-1DFF-4971-B8EA-41A899CB307A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "002_Vulkan_Tutorial_Mouse_Drag", "Vulkan_Tutorial_Mouse_Drag\Vulkan_Tutorial_Mouse_Drag.vcxproj", "{EEA4C116-1DFF-4971-B8EA-41A899CB307A}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "003_Vulkan_Skybox", "Vulkan_Skybox\Vulkan_Skybox.vcxproj", "{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "004_equirectangular_to_cubemap", "equirectangular_to_cubemap\equirectangular_to_cubemap.vcxproj", "{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +35,22 @@ Global
 		{EEA4C116-1DFF-4971-B8EA-41A899CB307A}.Release|x64.Build.0 = Release|x64
 		{EEA4C116-1DFF-4971-B8EA-41A899CB307A}.Release|x86.ActiveCfg = Release|Win32
 		{EEA4C116-1DFF-4971-B8EA-41A899CB307A}.Release|x86.Build.0 = Release|Win32
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Debug|x64.ActiveCfg = Debug|x64
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Debug|x64.Build.0 = Debug|x64
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Debug|x86.ActiveCfg = Debug|Win32
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Debug|x86.Build.0 = Debug|Win32
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Release|x64.ActiveCfg = Release|x64
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Release|x64.Build.0 = Release|x64
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Release|x86.ActiveCfg = Release|Win32
+		{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}.Release|x86.Build.0 = Release|Win32
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Debug|x64.ActiveCfg = Debug|x64
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Debug|x64.Build.0 = Debug|x64
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Debug|x86.ActiveCfg = Debug|Win32
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Debug|x86.Build.0 = Debug|Win32
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Release|x64.ActiveCfg = Release|x64
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Release|x64.Build.0 = Release|x64
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Release|x86.ActiveCfg = Release|Win32
+		{383D5848-7E6A-4ED1-B4D9-8D37FDA9501A}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

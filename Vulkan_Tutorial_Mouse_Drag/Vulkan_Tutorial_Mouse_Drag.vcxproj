@@ -24,7 +24,7 @@
     <ProjectGuid>{EEA4C116-1DFF-4971-B8EA-41A899CB307A}</ProjectGuid>
     <RootNamespace>VulkanTutorial</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Vulkan_Tutorial_Mouse_Drag</ProjectName>
+    <ProjectName>002_Vulkan_Tutorial_Mouse_Drag</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

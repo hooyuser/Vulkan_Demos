@@ -21,10 +21,10 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{81efed9a-c619-459c-a1d0-117544ce2f3e}</ProjectGuid>
+    <ProjectGuid>{D5D166CC-5867-451A-B6F6-40E24BFAA5C6}</ProjectGuid>
     <RootNamespace>VulkanTutorial</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>001_Vulkan_Tutorial</ProjectName>
+    <ProjectName>003_Vulkan_Skybox</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -165,12 +165,14 @@
     <None Include="assets\glsl_shaders\shader.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="vk_camera.cpp" />
     <ClCompile Include="vk_engine.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="vk_initializers.cpp" />
     <ClCompile Include="vk_mesh.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="vk_camera.h" />
     <ClInclude Include="util.h" />
     <ClInclude Include="vk_engine.h" />
     <ClInclude Include="vk_initializers.h" />
