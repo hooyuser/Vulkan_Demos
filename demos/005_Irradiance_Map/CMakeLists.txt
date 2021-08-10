@@ -1,13 +1,22 @@
 project(005_Irradiance_Map)
 
-file(GLOB source
+file(GLOB SRC
     "*.h"
     "*.cpp"
 )
 
-add_executable(005_Irradiance_Map
-    ${source}
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
 )
+
+add_executable(005_Irradiance_Map
+    ${SRC}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern

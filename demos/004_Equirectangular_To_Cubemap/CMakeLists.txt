@@ -1,13 +1,22 @@
 project(004_Equirectangular_To_Cubemap)
 
-file(GLOB source
+file(GLOB SRC
     "*.h"
     "*.cpp"
 )
 
-add_executable(004_Equirectangular_To_Cubemap
-    ${source}
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
 )
+
+add_executable(004_Equirectangular_To_Cubemap
+    ${SRC}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern

@@ -121,15 +121,22 @@ const std::vector<Vertex> vertices = {
 };
 
 const std::vector<uint16_t> indices = {
-	0 ,4, 7, 7, 3, 0,
-	2, 6, 5, 5, 1, 2,
-	3, 2, 1, 1, 0, 3,
-	4, 5, 6, 6, 7, 4,
-	1, 5, 4, 4, 0, 1,
-	3, 7, 6, 6, 2, 3
+	7 ,4, 0, 0, 3, 7,
+	5, 6, 2, 2, 1, 5,
+	1, 2, 3, 3, 0, 1,
+	6, 5, 4, 4, 7, 6,
+	4, 5, 1, 1, 0, 4,
+	6, 7, 3, 3, 2, 6
 };
 
-
+//const std::vector<uint16_t> indices = {
+//	0 ,4, 7, 7, 3, 0,
+//	2, 6, 5, 5, 1, 2,
+//	3, 2, 1, 1, 0, 3,
+//	4, 5, 6, 6, 7, 4,
+//	1, 5, 4, 4, 0, 1,
+//	3, 7, 6, 6, 2, 3
+//};
 
 
 class OfflineRenderingApplication {
@@ -1240,9 +1247,9 @@ private:
 		samplerInfo.pNext = nullptr;
 		samplerInfo.magFilter = VK_FILTER_LINEAR;
 		samplerInfo.minFilter = VK_FILTER_LINEAR;
-		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 		samplerInfo.anisotropyEnable = VK_TRUE;
 		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
 		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -1660,21 +1667,22 @@ private:
 
 
 int main() {
-
-	//glm::mat4 captureProjection =
-	//	glm::perspective((float)M_PI / 2.0f, 1.0f, 0.1f, 10.0f);
-	//glm::mat4 captureViews[] = {
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(-1.0f,  0.0f,  0.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, -1.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  1.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  1.0f), glm::vec3(0.0f, -1.0f,  0.0f)),
-	//	glm::lookAt(glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f, -1.0f), glm::vec3(0.0f, -1.0f,  0.0f))
-	//};
-	//for (int i = 0; i < 6; i++)
-	//{
-	//	std::cout << glm::to_string(captureProjection * captureViews[i]) << std::endl;
-	//}
+#ifndef NDEBUG
+	glm::mat4 captureProjection =
+		glm::perspective((float)M_PI / 2.0f, 1.0f, 0.1f, 10.0f);
+	glm::mat4 captureViews[] = {
+		glm::lookAt(glm::vec3(2.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  0.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(-2.0f, 0.0f, 0.0f), glm::vec3(0.0f,  0.0f,  0.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 2.0f, 0.0f), glm::vec3(0.0f, 0.0f,  0.0f), glm::vec3(0.0f,  0.0f, -1.0f)),
+		glm::lookAt(glm::vec3(0.0f, -2.0f, 0.0f), glm::vec3(0.0f,  0.0f,  0.0f), glm::vec3(0.0f,  0.0f,  1.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, 2.0f), glm::vec3(0.0f,  0.0f,  0.0f), glm::vec3(0.0f, 1.0f,  0.0f)),
+		glm::lookAt(glm::vec3(0.0f, 0.0f, -2.0f), glm::vec3(0.0f,  0.0f, 0.0f), glm::vec3(0.0f, 1.0f,  0.0f))
+	};
+	for (int i = 0; i < 6; i++)
+	{
+		std::cout << glm::to_string(captureProjection * captureViews[i]) << std::endl;
+	}
+#endif
 
 	clock_t start, end;
 	start = clock();

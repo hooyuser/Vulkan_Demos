@@ -179,8 +179,8 @@ private:
 
 	std::array<VkFence, 6> renderFences;
 
-	int texWidth = 512;
-	int texHeight = 512;
+	int texWidth = 1024;
+	int texHeight = 1024;
 
 	VkExtent2D texExtent{ (uint32_t)texWidth, (uint32_t)texHeight };
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -973,7 +973,7 @@ private:
 
 	void createTextureImage() {
 		// std::string textureImageFilePath = "textures/chinese_garden_1k.hdr";
-		std::string textureImageFilePath = "assets/textures/river_2K.exr";
+		std::string textureImageFilePath = "assets/textures/hdre_310_2K.exr";
 
 		std::string extensionName = textureImageFilePath.substr(textureImageFilePath.find_last_of(".") + 1);
 		int texImageWidth, texImageHeight;

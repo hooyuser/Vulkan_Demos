@@ -7,7 +7,7 @@ layout(location = 0) in vec3 localPos;
 layout(location = 0) out vec4 outColor;
 
 #define PI 3.14159265359
-#define SAMPLE_NUM 512
+#define SAMPLE_NUM 32768
 
 uvec2 Sobol(uint n) {
     uvec2 p = uvec2(0u);
@@ -61,20 +61,20 @@ vec3 genNu(uint index, uint seed) {
     vec2 psi = sobol2d(index, seed);
     float a = sqrt(psi.x);
     float b = 2.0 * PI * psi.y;
-    return vec3(a * cos(b), a * sin(b), sqrt(1.0 -psi.x));
+    return vec3(a * sin(b), sqrt(1.0 -psi.x), a * cos(b));
 }
 
 vec3 genSampleDirection(vec3 nu, vec3 N) {
-    vec3 T = cross(vec3(0.0,0.0,1.0), N);
+    vec3 T = cross(vec3(0.0, 1.0, 0.0), N);
     vec3 B = cross(N, T);
-    return vec3(T.x*nu.x + B.x*nu.y + N.x*nu.z, T.y*nu.x + B.y*nu.y + N.y*nu.z, T.z*nu.x + B.z*nu.y + N.z*nu.z);
+    return B * nu.x + N *nu.y + T * nu.z;
 }
 
 void main() {
     vec3 irradiance = vec3(0.0);
-    for(int i =0; i < SAMPLE_NUM; i++){
+    for(uint i = 0; i < SAMPLE_NUM; i++){
         uint seed = uint(float(0x00004000u) * gl_FragCoord.x + float(0x40000000u) * gl_FragCoord.y);
-        vec3 nu = genNu(i, seed);
+        vec3 nu = genNu(i, OwenHash(seed, i));
         vec3 dir = genSampleDirection(nu, normalize(localPos));
         irradiance += texture(cubeMap, dir).rgb;
     }
