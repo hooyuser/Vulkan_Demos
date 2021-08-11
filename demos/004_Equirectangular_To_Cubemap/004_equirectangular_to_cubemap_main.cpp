@@ -17,10 +17,10 @@
 #include <ctime>
 #include <string>
 
-#define STB_IMAGE_IMPLEMENTATION
+
 #include <stb_image.h>
 
-#define STB_IMAGE_WRITE_IMPLEMENTATION
+
 #include <stb_image_write.h>
 
 #if defined(_WIN32)
@@ -28,15 +28,19 @@
 #define NOMINMAX
 #endif
 #endif
-#define TINYEXR_IMPLEMENTATION
+#define TINYEXR_USE_THREAD 1
+#define TINYEXR_USE_OPENMP 1
+
 #include <tinyexr.h>
 
+#include "file_io.h"
 
-enum OUTPUT_FORMAT
-{
-	EXR_32_ALPHA, HDR, PNG
-};
-const OUTPUT_FORMAT output_format = HDR;
+// const std::string textureImageFilePath = "assets/textures/spruit_sunrise_16k.exr";
+const std::string textureImageFilePath = "assets/textures/preller_drive_16k.exr";
+const int OUTPUT_IMAGE_WIDTH = 4096;
+
+
+const OUTPUT_FORMAT output_format = OUTPUT_FORMAT::EXR_B32G32R32;
 
 const std::vector<const char*> instanceExtensions = {
 	VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
@@ -179,8 +183,8 @@ private:
 
 	std::array<VkFence, 6> renderFences;
 
-	int texWidth = 1024;
-	int texHeight = 1024;
+	int texWidth = OUTPUT_IMAGE_WIDTH;
+	int texHeight = OUTPUT_IMAGE_WIDTH;
 
 	VkExtent2D texExtent{ (uint32_t)texWidth, (uint32_t)texHeight };
 	VkDeviceSize imageSize = texWidth * texHeight * 4;
@@ -238,8 +242,16 @@ private:
 			}
 		}
 
-		for (int i = 0; i < 6; i++) {
+		std::array<std::string, 6> filenames = {
+			"assets/image_output/output_pos_x",
+			"assets/image_output/output_neg_x",
+			"assets/image_output/output_pos_y",
+			"assets/image_output/output_neg_y",
+			"assets/image_output/output_pos_z",
+			"assets/image_output/output_neg_z"
+		};
 
+		for (int i = 0; i < 6; i++) {
 			VkResult res = vkWaitForFences(device, 1, &renderFences[i], VK_TRUE, 10000000000);
 
 			VkImageSubresource subResource{};
@@ -251,99 +263,27 @@ private:
 			size_t imageBytes = texWidth * texHeight * 4 * 4;  //4 channel, sizeof(float) == 4Byte 
 
 			const char* imagedata;
+			float* outputImage = (float*)malloc(imageBytes);
 
-			if (output_format == EXR_32_ALPHA) {
-
+			if (subResourceLayout.rowPitch == texWidth * 4 * 4) {
+				vkMapMemory(device, stagingImageMemories[i], 0, imageBytes, 0, (void**)&imagedata);
+				imagedata += subResourceLayout.offset;
+				memcpy(outputImage, imagedata, imageBytes);
 			}
-			else if (output_format == HDR) {
-				std::array<const char*, 6> filenames = {
-						"assets/image_output/output_pos_x.hdr",
-						"assets/image_output/output_neg_x.hdr",
-						"assets/image_output/output_pos_y.hdr",
-						"assets/image_output/output_neg_y.hdr",
-						"assets/image_output/output_pos_z.hdr",
-						"assets/image_output/output_neg_z.hdr"
-				};
-				if (subResourceLayout.rowPitch == texWidth * 4 * 4) {
-					vkMapMemory(device, stagingImageMemories[i], 0, imageBytes, 0, (void**)&imagedata);
-					imagedata += subResourceLayout.offset;
-
-					float* outputImage = (float*)malloc(imageBytes);
-					memcpy(outputImage, imagedata, imageBytes);
-					stbi_write_hdr(filenames[i], texWidth, texHeight, 4, outputImage);
-					std::cout << "Framebuffer image saved to " << filenames[i] << std::endl;
-					free(outputImage);
-				}
-				else {
-					vkMapMemory(device, stagingImageMemories[i], 0, subResourceLayout.size, 0, (void**)&imagedata);
-					imagedata += subResourceLayout.offset;
-					float* outputImage = (float*)malloc(imageBytes);
-					char* pStart = (char*)imagedata;
-					for (int i = 0; i < texHeight; i++) {
-						memcpy(outputImage, pStart, texWidth * 4 * 4);
-						pStart += subResourceLayout.rowPitch;
-					}
-					stbi_write_hdr(filenames[i], texWidth, texHeight, 4, outputImage);
-					std::cout << "Framebuffer image saved to " << filenames[i] << std::endl;
-					free(outputImage);
+			else {
+				vkMapMemory(device, stagingImageMemories[i], 0, subResourceLayout.size, 0, (void**)&imagedata);
+				imagedata += subResourceLayout.offset;
+				char* pStart = (char*)imagedata;
+				for (int i = 0; i < texHeight; i++) {
+					memcpy(outputImage, pStart, texWidth * 4 * 4);
+					pStart += subResourceLayout.rowPitch;
 				}
 			}
-			else if (output_format == PNG) {
-				if (subResourceLayout.rowPitch == texWidth * 4) {
-					vkMapMemory(device, stagingImageMemories[i], 0, imageBytes, 0, (void**)&imagedata);
-					imagedata += subResourceLayout.offset;
-					std::array<const char*, 6> filenames = {
-						"./image_output/output_negx.png",
-						"./image_output/output_posx.png",
-						"./image_output/output_negy.png",
-						"./image_output/output_posy.png",
-						"./image_output/output_negz.png",
-						"./image_output/output_posz.png"
-					};
-					char* outputImage = (char*)malloc(imageBytes);
-					memcpy(outputImage, imagedata, imageBytes);
-					stbi_write_png(filenames[i], texWidth, texHeight, 4, outputImage, 0);
-					std::cout << "Framebuffer image saved to " << filenames[i] << std::endl;
-					free(outputImage);
-				}
-				else {
-					vkMapMemory(device, stagingImageMemories[i], 0, VK_WHOLE_SIZE, 0, (void**)&imagedata);
-					imagedata += subResourceLayout.offset;
-					const char* filename = "./image_output/output.ppm";
-
-					std::ofstream file(filename, std::ios::out | std::ios::binary);
-
-					// ppm header
-					file << "P6\n" << texWidth << "\n" << texHeight << "\n" << 255 << "\n";
-
-					// If source is BGR (destination is always RGB) and we can't use blit (which does automatic conversion), we'll have to manually swizzle color components
-					// Check if source is BGR and needs swizzle
-					std::vector<VkFormat> formatsBGR = { VK_FORMAT_B8G8R8A8_SRGB, VK_FORMAT_B8G8R8A8_UNORM, VK_FORMAT_B8G8R8A8_SNORM };
-					const bool colorSwizzle = (std::find(formatsBGR.begin(), formatsBGR.end(), VK_FORMAT_R8G8B8A8_UNORM) != formatsBGR.end());
-
-					// ppm binary pixel data
-					for (int32_t y = 0; y < texHeight; y++) {
-						unsigned int* row = (unsigned int*)imagedata;
-						for (int32_t x = 0; x < texWidth; x++) {
-							if (colorSwizzle) {
-								file.write((char*)row + 2, 1);
-								file.write((char*)row + 1, 1);
-								file.write((char*)row, 1);
-							}
-							else {
-								file.write((char*)row, 3);
-							}
-							row++;
-						}
-						imagedata += subResourceLayout.rowPitch;
-					}
-					file.close();
-
-					std::cout << "Framebuffer image saved to " << filename << std::endl;
-				}
-			}
-
 			vkUnmapMemory(device, stagingImageMemories[i]);
+
+			file_io::saveImage(filenames[i], outputImage, texWidth, texHeight, output_format);
+
+			free(outputImage);
 		}
 
 	}
@@ -528,9 +468,8 @@ private:
 	}
 
 	void createOutputImages() {
-		if (output_format == HDR) {
-			colorAttachmentFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
-		}
+
+		colorAttachmentFormat = VK_FORMAT_R32G32B32A32_SFLOAT;
 
 		for (int i = 0; i < 6; i++) {
 			createImage(texWidth, texHeight, colorAttachmentFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorAttachmentImages[i], colorAttachmentImageMemories[i]);
@@ -545,41 +484,6 @@ private:
 			createImage(texWidth, texHeight, stagingImageFormat, VK_IMAGE_TILING_LINEAR, VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingImages[i], stagingImageMemories[i]);
 		}
 	}
-
-	//void createCubeMap(uint32_t width, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
-	//	VkImageCreateInfo imageInfo{};
-	//	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	//	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	//	imageInfo.extent.width = width;
-	//	imageInfo.extent.height = width;
-	//	imageInfo.extent.depth = 1;
-	//	imageInfo.mipLevels = 1;
-	//	imageInfo.format = format;
-	//	imageInfo.tiling = tiling;
-	//	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	//	imageInfo.usage = usage;
-	//	imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-	//	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-	//	imageInfo.arrayLayers = 6;
-	//	imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-	//	VkResult vkr = vkCreateImage(device, &imageInfo, nullptr, &image);
-
-	//	if (vkr != VK_SUCCESS) {
-	//		throw std::runtime_error("failed to create image!");
-	//	}
-
-	//	VkMemoryRequirements memRequirements;
-	//	vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-	//	VkMemoryAllocateInfo allocInfo{};
-	//	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	//	allocInfo.allocationSize = memRequirements.size;
-	//	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-	//	vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory);
-	//	vkBindImageMemory(device, image, imageMemory, 0);
-	//}
 
 	void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory) {
 		VkImageCreateInfo imageInfo{};
@@ -972,9 +876,6 @@ private:
 	}
 
 	void createTextureImage() {
-		// std::string textureImageFilePath = "textures/chinese_garden_1k.hdr";
-		std::string textureImageFilePath = "assets/textures/hdre_310_2K.exr";
-
 		std::string extensionName = textureImageFilePath.substr(textureImageFilePath.find_last_of(".") + 1);
 		int texImageWidth, texImageHeight;
 		int texImageChannels;

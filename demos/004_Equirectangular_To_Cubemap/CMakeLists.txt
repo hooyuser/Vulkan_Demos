@@ -1,8 +1,11 @@
 project(004_Equirectangular_To_Cubemap)
 
 file(GLOB SRC
-    "*.h"
     "*.cpp"
+)
+
+file(GLOB HEADER
+    "*.h"
 )
 
 file(GLOB_RECURSE SHADERS
@@ -12,10 +15,12 @@ file(GLOB_RECURSE SHADERS
 
 add_executable(004_Equirectangular_To_Cubemap
     ${SRC}
+    ${HEADER}
     ${SHADERS}
 )
 
 source_group("Source Files"            FILES ${SRC})
+source_group("Header Files"            FILES ${HEADER})
 source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
