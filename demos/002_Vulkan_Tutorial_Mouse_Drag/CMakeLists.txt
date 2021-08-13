@@ -1,13 +1,27 @@
 project(002_Vulkan_Tutorial_Mouse_Drag)
 
-file(GLOB source
-    "*.h"
+file(GLOB SRC
     "*.cpp"
 )
 
-add_executable(002_Vulkan_Tutorial_Mouse_Drag
-    ${source}
+file(GLOB HEADER
+    "*.h"
 )
+
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
+)
+
+add_executable(002_Vulkan_Tutorial_Mouse_Drag
+    ${SRC}
+    ${HEADER}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("Header Files"            FILES ${HEADER})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern

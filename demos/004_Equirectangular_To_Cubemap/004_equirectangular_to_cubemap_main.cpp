@@ -36,11 +36,11 @@
 #include "file_io.h"
 
 // const std::string textureImageFilePath = "assets/textures/spruit_sunrise_16k.exr";
-const std::string textureImageFilePath = "assets/textures/preller_drive_16k.exr";
-const int OUTPUT_IMAGE_WIDTH = 4096;
+const std::string textureImageFilePath = "assets/textures/river_2K.exr";
+const int OUTPUT_IMAGE_WIDTH = 1024;
 
 
-const OUTPUT_FORMAT output_format = OUTPUT_FORMAT::EXR_B32G32R32;
+const OUTPUT_FORMAT output_format = OUTPUT_FORMAT::HDR;
 
 const std::vector<const char*> instanceExtensions = {
 	VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME
@@ -105,6 +105,10 @@ struct UniformBufferObject {
 	int index;
 };
 
+struct PushConstant {
+	int index;
+};
+
 const std::vector<Vertex> vertices = {
 	{{-1.0f, -1.0f, -1.0f}},
 	{{1.0f, -1.0f, -1.0f}},
@@ -117,13 +121,23 @@ const std::vector<Vertex> vertices = {
 };
 
 const std::vector<uint16_t> indices = {
-	0 ,4, 7, 7, 3, 0,
-	2, 6, 5, 5, 1, 2,
-	3, 2, 1, 1, 0, 3,
-	4, 5, 6, 6, 7, 4,
-	1, 5, 4, 4, 0, 1,
-	3, 7, 6, 6, 2, 3
+	7 ,4, 0, 0, 3, 7,
+	5, 6, 2, 2, 1, 5,
+	1, 2, 3, 3, 0, 1,
+	6, 5, 4, 4, 7, 6,
+	4, 5, 1, 1, 0, 4,
+	6, 7, 3, 3, 2, 6
 };
+
+
+//const std::vector<uint16_t> indices = {
+//	0 ,4, 7, 7, 3, 0,
+//	2, 6, 5, 5, 1, 2,
+//	3, 2, 1, 1, 0, 3,
+//	4, 5, 6, 6, 7, 4,
+//	1, 5, 4, 4, 0, 1,
+//	3, 7, 6, 6, 2, 3
+//};
 
 
 
@@ -750,10 +764,19 @@ private:
 		colorBlending.blendConstants[2] = 0.0f;
 		colorBlending.blendConstants[3] = 0.0f;
 
+
+		VkPushConstantRange push_constant;
+		push_constant.offset = 0;
+		push_constant.size = sizeof(PushConstant);
+		push_constant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
 		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
 		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 		pipelineLayoutInfo.setLayoutCount = 1;
 		pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+		pipelineLayoutInfo.pushConstantRangeCount = 1;
+		pipelineLayoutInfo.pPushConstantRanges = &push_constant;
+
 
 		if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
@@ -774,6 +797,7 @@ private:
 		pipelineInfo.renderPass = renderPass;
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+
 
 		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics pipeline!");
@@ -1190,8 +1214,10 @@ private:
 
 			vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-			int a = 4;
-			float aa = 656.0;
+			PushConstant constant;
+			constant.index = i;
+
+			vkCmdPushConstants(commandBuffers[i], pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(PushConstant), &constant);
 
 			vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 

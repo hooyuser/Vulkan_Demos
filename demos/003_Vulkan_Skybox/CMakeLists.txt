@@ -1,13 +1,27 @@
 project(003_Vulkan_Skybox)
 
-file(GLOB source
-    "*.h"
+file(GLOB SRC
     "*.cpp"
 )
 
-add_executable(003_Vulkan_Skybox
-    ${source}
+file(GLOB HEADER
+    "*.h"
 )
+
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
+)
+
+add_executable(003_Vulkan_Skybox
+    ${SRC}
+    ${HEADER}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("Header Files"            FILES ${HEADER})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern

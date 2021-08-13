@@ -264,7 +264,7 @@ private:
 		};
 
 		for (int i = 0; i < 6; i++) {
-			VkResult res = vkWaitForFences(device, 1, &renderFences[i], VK_TRUE, 10000000000);
+			VkResult res = vkWaitForFences(device, 1, &renderFences[i], VK_TRUE, 10000000000000);
 
 			VkImageSubresource subResource{};
 			subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;

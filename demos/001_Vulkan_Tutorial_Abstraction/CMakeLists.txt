@@ -1,13 +1,27 @@
 project(001_Vulkan_Tutorial_Abstraction)
 
-file(GLOB source
-    "*.h"
+file(GLOB SRC
     "*.cpp"
 )
 
-add_executable(001_Vulkan_Tutorial_Abstraction
-    ${source}
+file(GLOB HEADER
+    "*.h"
 )
+
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
+)
+
+add_executable(001_Vulkan_Tutorial_Abstraction
+    ${SRC}
+    ${HEADER}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("Header Files"            FILES ${HEADER})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern

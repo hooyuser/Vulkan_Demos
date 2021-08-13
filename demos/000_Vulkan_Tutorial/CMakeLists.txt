@@ -1,8 +1,21 @@
 project(000_Vulkan_Tutorial)
 
-add_executable(000_Vulkan_Tutorial
-    000_vulkan_tutorial_main.cpp
+file(GLOB SRC
+    "*.cpp"
 )
+
+file(GLOB_RECURSE SHADERS
+    "*.vert"
+    "*.frag"
+)
+
+add_executable(000_Vulkan_Tutorial
+    ${SRC}
+    ${SHADERS}
+)
+
+source_group("Source Files"            FILES ${SRC})
+source_group("GLSL Shaders"        FILES ${SHADERS})
 
 set(extern_dir
     ${CMAKE_SOURCE_DIR}/extern
