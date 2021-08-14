@@ -1,9 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-layout(binding = 0) uniform UniformBufferObject {
-    int index;
-} ubo;
 
 layout(push_constant) uniform PushConstant {
     int index;

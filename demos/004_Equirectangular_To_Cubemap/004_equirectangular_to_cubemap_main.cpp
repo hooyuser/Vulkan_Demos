@@ -16,6 +16,7 @@
 #include <stdexcept>
 #include <ctime>
 #include <string>
+#include <thread>
 
 
 #include <stb_image.h>
@@ -39,6 +40,14 @@
 const std::string textureImageFilePath = "assets/textures/river_2K.exr";
 const int OUTPUT_IMAGE_WIDTH = 1024;
 
+std::array<std::string, 6> filenames = {
+	"assets/image_output/output_pos_x",
+	"assets/image_output/output_neg_x",
+	"assets/image_output/output_pos_y",
+	"assets/image_output/output_neg_y",
+	"assets/image_output/output_pos_z",
+	"assets/image_output/output_neg_z"
+};
 
 const OUTPUT_FORMAT output_format = OUTPUT_FORMAT::HDR;
 
@@ -101,10 +110,6 @@ struct Vertex {
 };
 
 
-struct UniformBufferObject {
-	int index;
-};
-
 struct PushConstant {
 	int index;
 };
@@ -129,7 +134,6 @@ const std::vector<uint16_t> indices = {
 	6, 7, 3, 3, 2, 6
 };
 
-
 //const std::vector<uint16_t> indices = {
 //	0 ,4, 7, 7, 3, 0,
 //	2, 6, 5, 5, 1, 2,
@@ -138,9 +142,6 @@ const std::vector<uint16_t> indices = {
 //	1, 5, 4, 4, 0, 1,
 //	3, 7, 6, 6, 2, 3
 //};
-
-
-
 
 class OfflineRenderingApplication {
 public:
@@ -189,9 +190,6 @@ private:
 	VkBuffer indexBuffer;
 	VkDeviceMemory indexBufferMemory;
 
-	std::array<VkBuffer, 6> uniformBuffers;
-	std::array<VkDeviceMemory, 6> uniformBufferMemories;
-
 	VkCommandPool commandPool;
 	std::array<VkCommandBuffer, 6> commandBuffers;
 
@@ -224,23 +222,51 @@ private:
 		createTextureSampler();
 		createVertexBuffer();
 		createIndexBuffer();
-		createUniformBuffers();
 		createDescriptorPool();
 		createDescriptorSet();
 		createCommandBuffers();
 		createSyncObjects();
 	}
 
+	void saveCubemap(int i) {
+		VkResult res = vkWaitForFences(device, 1, &renderFences[i], VK_TRUE, 10000000000);
+
+		VkImageSubresource subResource{};
+		subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		VkSubresourceLayout subResourceLayout;
+
+		vkGetImageSubresourceLayout(device, stagingImages[i], &subResource, &subResourceLayout);
+
+		size_t imageBytes = texWidth * texHeight * 4 * 4;  //4 channel, sizeof(float) == 4Byte 
+
+		const char* imagedata;
+		float* outputImage = (float*)malloc(imageBytes);
+
+		if (subResourceLayout.rowPitch == texWidth * 4 * 4) {
+			vkMapMemory(device, stagingImageMemories[i], 0, imageBytes, 0, (void**)&imagedata);
+			imagedata += subResourceLayout.offset;
+			memcpy(outputImage, imagedata, imageBytes);
+		}
+		else {
+			vkMapMemory(device, stagingImageMemories[i], 0, subResourceLayout.size, 0, (void**)&imagedata);
+			imagedata += subResourceLayout.offset;
+			char* pStart = (char*)imagedata;
+			for (int i = 0; i < texHeight; i++) {
+				memcpy(outputImage, pStart, texWidth * 4 * 4);
+				pStart += subResourceLayout.rowPitch;
+			}
+		}
+		vkUnmapMemory(device, stagingImageMemories[i]);
+
+		file_io::saveImage(filenames[i], outputImage, texWidth, texHeight, output_format);
+
+		free(outputImage);
+	}
+
 	void offlineRender() {
-		UniformBufferObject ubo{};
 		void* data;
 
 		for (int i = 0; i < 6; i++) {
-			ubo.index = i;
-			vkMapMemory(device, uniformBufferMemories[i], 0, sizeof(ubo), 0, &data);
-			memcpy(data, &ubo, sizeof(ubo));
-			vkUnmapMemory(device, uniformBufferMemories[i]);
-
 			VkSubmitInfo submitInfo{};
 			submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			submitInfo.waitSemaphoreCount = 0;
@@ -256,50 +282,14 @@ private:
 			}
 		}
 
-		std::array<std::string, 6> filenames = {
-			"assets/image_output/output_pos_x",
-			"assets/image_output/output_neg_x",
-			"assets/image_output/output_pos_y",
-			"assets/image_output/output_neg_y",
-			"assets/image_output/output_pos_z",
-			"assets/image_output/output_neg_z"
-		};
-
+		std::thread saveCubemapthread[6];
 		for (int i = 0; i < 6; i++) {
-			VkResult res = vkWaitForFences(device, 1, &renderFences[i], VK_TRUE, 10000000000);
-
-			VkImageSubresource subResource{};
-			subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			VkSubresourceLayout subResourceLayout;
-
-			vkGetImageSubresourceLayout(device, stagingImages[i], &subResource, &subResourceLayout);
-
-			size_t imageBytes = texWidth * texHeight * 4 * 4;  //4 channel, sizeof(float) == 4Byte 
-
-			const char* imagedata;
-			float* outputImage = (float*)malloc(imageBytes);
-
-			if (subResourceLayout.rowPitch == texWidth * 4 * 4) {
-				vkMapMemory(device, stagingImageMemories[i], 0, imageBytes, 0, (void**)&imagedata);
-				imagedata += subResourceLayout.offset;
-				memcpy(outputImage, imagedata, imageBytes);
-			}
-			else {
-				vkMapMemory(device, stagingImageMemories[i], 0, subResourceLayout.size, 0, (void**)&imagedata);
-				imagedata += subResourceLayout.offset;
-				char* pStart = (char*)imagedata;
-				for (int i = 0; i < texHeight; i++) {
-					memcpy(outputImage, pStart, texWidth * 4 * 4);
-					pStart += subResourceLayout.rowPitch;
-				}
-			}
-			vkUnmapMemory(device, stagingImageMemories[i]);
-
-			file_io::saveImage(filenames[i], outputImage, texWidth, texHeight, output_format);
-
-			free(outputImage);
+			saveCubemapthread[i] = std::thread([this, i] { this->saveCubemap(i); });
 		}
 
+		for (int i = 0; i < 6; i++) {
+			saveCubemapthread[i].join();
+		}
 	}
 
 	void cleanup() {
@@ -308,16 +298,10 @@ private:
 		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 
-		for (int i = 0; i < 6; i++) {
-			vkDestroyBuffer(device, uniformBuffers[i], nullptr);
-			vkFreeMemory(device, uniformBufferMemories[i], nullptr);
-		}
-
 		vkDestroySampler(device, textureSampler, nullptr);
 		vkDestroyImageView(device, textureImageView, nullptr);
 		vkDestroyImage(device, textureImage, nullptr);
 		vkFreeMemory(device, textureImageMemory, nullptr);
-
 
 		vkDestroyBuffer(device, indexBuffer, nullptr);
 		vkFreeMemory(device, indexBufferMemory, nullptr);
@@ -643,25 +627,17 @@ private:
 	}
 
 	void createDescriptorSetLayout() {
-		VkDescriptorSetLayoutBinding uboLayoutBinding{};
-		uboLayoutBinding.binding = 0;
-		uboLayoutBinding.descriptorCount = 1;
-		uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-		uboLayoutBinding.pImmutableSamplers = nullptr;
-		uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
 		VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-		samplerLayoutBinding.binding = 1;
+		samplerLayoutBinding.binding = 0;
 		samplerLayoutBinding.descriptorCount = 1;
 		samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		samplerLayoutBinding.pImmutableSamplers = nullptr;
 		samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-		std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
 		VkDescriptorSetLayoutCreateInfo layoutInfo{};
 		layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-		layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-		layoutInfo.pBindings = bindings.data();
+		layoutInfo.bindingCount = 1;
+		layoutInfo.pBindings = &samplerLayoutBinding;
 
 		if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
@@ -929,14 +905,6 @@ private:
 				}
 			}
 			imageSize = texImageWidth * texImageHeight * 4 * sizeof(float);
-			//pixels = (float*)malloc((size_t)imageSize);
-
-			//for (int i = 0; i < texImageWidth * texImageHeight; i++) {
-			//	for (int ch = 0; ch < 3; ch++) {
-			//		pixels[i * 3 + ch] = rgba[i * 4 + ch];
-			//	}
-			//}
-			//free(rgba);
 		}
 		else {
 			throw std::runtime_error("unsupported image format!");
@@ -1091,13 +1059,6 @@ private:
 		endSingleTimeCommands(commandBuffer);
 	}
 
-	void createUniformBuffers() {
-		VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-		for (int i = 0; i < 6; i++) {
-			createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBufferMemories[i]);
-		}
-	}
-
 	void createDescriptorPool() {
 		std::array<VkDescriptorPoolSize, 2> poolSizes{};
 		poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1130,35 +1091,22 @@ private:
 		}
 
 		for (int i = 0; i < 6; i++) {
-			VkDescriptorBufferInfo bufferInfo{};
-			bufferInfo.buffer = uniformBuffers[i];
-			bufferInfo.offset = 0;
-			bufferInfo.range = sizeof(UniformBufferObject);
-
 			VkDescriptorImageInfo imageInfo{};
 			imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			imageInfo.imageView = textureImageView;
 			imageInfo.sampler = textureSampler;
 
-			std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-			descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[0].dstSet = descriptorSets[i];
-			descriptorWrites[0].dstBinding = 0;
-			descriptorWrites[0].dstArrayElement = 0;
-			descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			descriptorWrites[0].descriptorCount = 1;
-			descriptorWrites[0].pBufferInfo = &bufferInfo;
+			VkWriteDescriptorSet descriptorWrites{};
+			descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+			descriptorWrites.dstSet = descriptorSets[i];
+			descriptorWrites.dstBinding = 0;
+			descriptorWrites.dstArrayElement = 0;
+			descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+			descriptorWrites.descriptorCount = 1;
+			descriptorWrites.pImageInfo = &imageInfo;
 
-			descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-			descriptorWrites[1].dstSet = descriptorSets[i];
-			descriptorWrites[1].dstBinding = 1;
-			descriptorWrites[1].dstArrayElement = 0;
-			descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-			descriptorWrites[1].descriptorCount = 1;
-			descriptorWrites[1].pImageInfo = &imageInfo;
-
-			vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+			vkUpdateDescriptorSets(device, 1, &descriptorWrites, 0, nullptr);
 		}
 	}
 
@@ -1233,7 +1181,6 @@ private:
 				VK_PIPELINE_STAGE_TRANSFER_BIT,
 				VK_PIPELINE_STAGE_TRANSFER_BIT,
 				VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
-
 
 			VkImageCopy imageCopyRegion{};
 			imageCopyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
