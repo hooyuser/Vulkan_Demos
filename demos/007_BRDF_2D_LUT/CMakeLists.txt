@@ -21,6 +21,12 @@ add_executable(${PROJECT_NAME}
     ${SHADERS}
 )
 
+add_custom_command(TARGET ${PROJECT_NAME}
+                   PRE_BUILD
+                   COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
+                   COMMAND compile_spirv.bat
+)
+
 source_group("Source Files"            FILES ${SRC})
 source_group("Header Files"            FILES ${HEADER})
 source_group("GLSL Shaders"        FILES ${SHADERS})
@@ -45,3 +51,4 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+
