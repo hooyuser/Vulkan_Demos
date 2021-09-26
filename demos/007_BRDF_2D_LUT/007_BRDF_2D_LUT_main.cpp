@@ -36,7 +36,7 @@
 
 const char* filename = "assets/image_output/BRDF_2D_LUT";
 
-const int OUTPUT_IMAGE_WIDTH = 256;
+const int OUTPUT_IMAGE_WIDTH = 1024;
 
 const OUTPUT_FORMAT output_format = OUTPUT_FORMAT::PNG_R8G8B8A8;
 
@@ -396,7 +396,7 @@ private:
 
 	void createOutputImages() {
 	
-		colorAttachmentFormat = VK_FORMAT_R8G8B8A8_SRGB;
+		colorAttachmentFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 		createImage(texWidth, texHeight, colorAttachmentFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorAttachmentImage, colorAttachmentImageMemory);
 		
