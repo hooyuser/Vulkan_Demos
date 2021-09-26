@@ -10,10 +10,10 @@ uvec2 Sobol(uint n) {
     uvec2 p = uvec2(0u);
     uvec2 d = uvec2(0x80000000u);
 
-    for(; n != 0u; n >>= 1u) {
-        if((n & 1u) != 0u)
+    for (; n != 0u; n >>= 1u) {
+        if ((n & 1u) != 0u) {
             p ^= d;
-        
+        }
         d.x >>= 1u; // 1st dimension Sobol matrix, is same as base 2 Van der Corput
         d.y ^= d.y >> 1u; // 2nd dimension Sobol matrix
     }
@@ -74,8 +74,8 @@ vec2 IntegrateBRDF(float NdotWo, float roughness) {
     float B = 0.0;
     vec3 N = vec3(0.0, 1.0, 0.0);
 
-    const uint SAMPLE_COUNT = 8192u;
-    for(uint k = 0u; k < SAMPLE_COUNT; ++k) {
+    const uint SAMPLE_COUNT = 65536u;
+    for (uint k = 0u; k < SAMPLE_COUNT; ++k) {
         uint seed = OwenHash(uint(gl_FragCoord.x), uint(gl_FragCoord.y));
         vec3 H = genHalfVector(k, seed, a);
         vec3 Wi  = normalize(2.0 * dot(Wo, H) * H - Wo);
@@ -84,8 +84,7 @@ vec2 IntegrateBRDF(float NdotWo, float roughness) {
         float NdotH = max(H.y, 0.0);
         float HdotWo = max(dot(Wo, H), 0.0);
 
-        if(NdotWi > 0.0)
-        {
+        if (NdotWi > 0.0) {
             float G1 = NdotWi * (NdotWo * (1 - a) + a);
             float G2 = NdotWo * (NdotWi * (1 - a) + a);
             float G_Vis = 2 * (NdotWi * HdotWo) / (G1 + G2) / NdotH;
