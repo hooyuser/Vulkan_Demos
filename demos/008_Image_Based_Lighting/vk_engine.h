@@ -3,11 +3,9 @@
 #include "vk_types.h"
 #include "vk_mesh.h"
 #include "vk_camera.h"
+#include "vk_buffer.h"
 
 // #define GLFW_INCLUDE_VULKAN
-
-
-
 
 #include <iostream>
 #include <fstream>
@@ -27,6 +25,7 @@
 
 struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
+
 
 struct DeletionQueue
 {
@@ -59,6 +58,8 @@ public:
 
 	void build_pipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 };
+
+
 
 
 class VulkanEngine {
@@ -279,5 +280,8 @@ private:
 
 	void setCamera();
 
+	friend class ::engine::Buffer;
 };
+
+
 

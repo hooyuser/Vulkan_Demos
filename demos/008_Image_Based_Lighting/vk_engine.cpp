@@ -40,6 +40,7 @@ const bool enableValidationLayers = true;
 #endif
 
 
+
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
@@ -67,6 +68,8 @@ struct SwapChainSupportDetails {
 
 
 SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f),3.46f,glm::vec3(0.0f, 0.0f, -1.0f) };
+
+
 Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
 glm::vec2 VulkanEngine::mousePreviousPos = glm::vec2(0.0);
 glm::vec2 VulkanEngine::mouseDeltaPos = glm::vec2(0.0);
@@ -1045,21 +1048,20 @@ void VulkanEngine::uploadMesh(Mesh& mesh) {
 void VulkanEngine::createVertexBuffer(Mesh& mesh) {
 	VkDeviceSize bufferSize = sizeof(mesh._vertices[0]) * mesh._vertices.size();
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, TEMP_BIT);
+	auto stagingBuffer = engine::Buffer::createBuffer(*this, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bufferSize, TEMP_BIT);
+	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, TEMP_BIT);
 
 	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
+	vkMapMemory(device, stagingBuffer->memory, 0, bufferSize, 0, &data);
 	memcpy(data, mesh._vertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(device, stagingBufferMemory);
+	vkUnmapMemory(device, stagingBuffer->memory);
 
 	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh._vertexBuffer._buffer, mesh._vertexBuffer._bufferMemory, BEFORE_SWAPCHAIN_BIT);
 
-	copyBuffer(stagingBuffer, mesh._vertexBuffer._buffer, bufferSize);
+	copyBuffer(stagingBuffer->buffer, mesh._vertexBuffer._buffer, bufferSize);
 
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
+	//vkDestroyBuffer(device, stagingBuffer->buffer, nullptr);
+	//vkFreeMemory(device, stagingBuffer->memory, nullptr);
 }
 
 void VulkanEngine::createIndexBuffer(Mesh& mesh) {
@@ -1650,8 +1652,7 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 	camera.zoom((float)yoffset, 0.3f);
 }
 
-void VulkanEngine::setCamera()
-{
+void VulkanEngine::setCamera() {
 	camera.aspectRatio = swapChainExtent.width / (float)swapChainExtent.height;
 }
 
@@ -1677,3 +1678,5 @@ void PipelineBuilder::build_pipeline(const VkDevice& device, const VkRenderPass&
 		throw std::runtime_error("failed to create graphics pipeline!");
 	}
 }
+
+

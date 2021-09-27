@@ -37,4 +37,9 @@ struct AllocatedBuffer {
     VkDeviceMemory _bufferMemory;
 };
 
+struct AllocatedImage {
+    VkImage _image;
+    VkDeviceMemory _imageMemory;
+};
+
 
