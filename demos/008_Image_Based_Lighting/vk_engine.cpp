@@ -651,27 +651,26 @@ void VulkanEngine::createTextureImage() {
 	const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
 	VkDeviceSize imageSize = layerSize * 6;
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, TEMP_BIT);
+	auto pStagingBuffer = engine::Buffer::createBuffer(*this,
+		imageSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		TEMP_BIT);
 
 	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, imageSize, 0, &data);
+	vkMapMemory(device, pStagingBuffer->memory, 0, imageSize, 0, &data);
 	for (int i = 0; i < 6; i++) {
 		memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
 		stbi_image_free(pixels[i]);
 	}
-	vkUnmapMemory(device, stagingBufferMemory);
+	vkUnmapMemory(device, pStagingBuffer->memory);
 
 	createCubemapImage(texWidth, mipLevels, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory, BEFORE_SWAPCHAIN_BIT);
 
 	transitionImageLayout(textureImage, VK_FORMAT_R32G32B32A32_SFLOAT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, mipLevels, 6);
-	copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 6);
+	copyBufferToImage(pStagingBuffer->buffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight), 6);
 	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
 
 	generateMipmaps(textureImage, VK_FORMAT_R32G32B32A32_SFLOAT, texWidth, texHeight, mipLevels, 6);
 }
@@ -1048,40 +1047,41 @@ void VulkanEngine::uploadMesh(Mesh& mesh) {
 void VulkanEngine::createVertexBuffer(Mesh& mesh) {
 	VkDeviceSize bufferSize = sizeof(mesh._vertices[0]) * mesh._vertices.size();
 
-	auto stagingBuffer = engine::Buffer::createBuffer(*this, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bufferSize, TEMP_BIT);
-	//createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, TEMP_BIT);
+	auto pStagingBuffer = engine::Buffer::createBuffer(*this, 
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+		TEMP_BIT);
 
-	void* data;
-	vkMapMemory(device, stagingBuffer->memory, 0, bufferSize, 0, &data);
-	memcpy(data, mesh._vertices.data(), (size_t)bufferSize);
-	vkUnmapMemory(device, stagingBuffer->memory);
+	pStagingBuffer->updateFromHost(mesh._vertices.data());
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh._vertexBuffer._buffer, mesh._vertexBuffer._bufferMemory, BEFORE_SWAPCHAIN_BIT);
+	mesh.pVertexBuffer = engine::Buffer::createBuffer(*this,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		BEFORE_SWAPCHAIN_BIT);
 
-	copyBuffer(stagingBuffer->buffer, mesh._vertexBuffer._buffer, bufferSize);
-
-	//vkDestroyBuffer(device, stagingBuffer->buffer, nullptr);
-	//vkFreeMemory(device, stagingBuffer->memory, nullptr);
+	copyBuffer(pStagingBuffer->buffer, mesh.pVertexBuffer->buffer, bufferSize);
 }
 
 void VulkanEngine::createIndexBuffer(Mesh& mesh) {
 	VkDeviceSize bufferSize = sizeof(mesh._indices[0]) * mesh._indices.size();
 
-	VkBuffer stagingBuffer;
-	VkDeviceMemory stagingBufferMemory;
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer, stagingBufferMemory, TEMP_BIT);
+	auto pStagingBuffer = engine::Buffer::createBuffer(*this,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		TEMP_BIT);
 
-	void* data;
-	vkMapMemory(device, stagingBufferMemory, 0, bufferSize, 0, &data);
-	memcpy(data, mesh._indices.data(), (size_t)bufferSize);
-	vkUnmapMemory(device, stagingBufferMemory);
+	pStagingBuffer->updateFromHost(mesh._indices.data());
 
-	createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, mesh._indexBuffer._buffer, mesh._indexBuffer._bufferMemory, BEFORE_SWAPCHAIN_BIT);
+	mesh.pIndexBuffer = engine::Buffer::createBuffer(*this,
+		bufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		BEFORE_SWAPCHAIN_BIT);
 
-	copyBuffer(stagingBuffer, mesh._indexBuffer._buffer, bufferSize);
-
-	vkDestroyBuffer(device, stagingBuffer, nullptr);
-	vkFreeMemory(device, stagingBufferMemory, nullptr);
+	copyBuffer(pStagingBuffer->buffer, mesh.pIndexBuffer->buffer, bufferSize);
 }
 
 void VulkanEngine::createUniformBuffers() {
@@ -1240,7 +1240,6 @@ void VulkanEngine::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
 }
 
 
-
 void VulkanEngine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1286,11 +1285,11 @@ void VulkanEngine::createCommandBuffers() {
 
 		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-		VkBuffer vertexBuffers[] = { meshSkyBox._vertexBuffer._buffer };
+		VkBuffer vertexBuffers[] = { meshSkyBox.pVertexBuffer->buffer };
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffers[i], meshSkyBox._indexBuffer._buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffers[i], meshSkyBox.pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 

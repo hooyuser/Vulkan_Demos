@@ -5,7 +5,7 @@
 
 
 namespace vk_base {
-	Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size) : device(device) {
+	Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size) : device(device), size(size) {
 		VkBufferCreateInfo bufferInfo{};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufferInfo.size = size;
@@ -46,7 +46,7 @@ namespace vk_base {
 namespace engine {
 	using BufferPtr = std::shared_ptr<Buffer>;
 
-	BufferPtr Buffer::createBuffer(VulkanEngine& engine, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size, CreateResourceFlagBits bufferDescription) {
+	BufferPtr Buffer::createBuffer(VulkanEngine& engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription) {
 		auto pBuffer = std::make_shared<Buffer>(engine.device, engine.physicalDevice, bufferUsage, memoryProperties, size);
 		if (bufferDescription & 0x00000001) {
 			if (bufferDescription == AFTER_SWAPCHAIN_BIT) {
@@ -67,5 +67,12 @@ namespace engine {
 			}
 		}
 		return pBuffer;
+	}
+
+	void Buffer::updateFromHost(void* hostData) {
+		void* data;
+		vkMapMemory(device, memory, 0, size, 0, &data);
+		memcpy(data, hostData, (size_t)size);
+		vkUnmapMemory(device, memory);
 	}
 }

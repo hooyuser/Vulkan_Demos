@@ -1,9 +1,9 @@
 #pragma once
 
 #include "vk_types.h"
-#include <vector>
+#include "vk_buffer.h"
 #include <glm/vec3.hpp>
-
+#include <vector>
 
 struct Vertex {
     glm::vec3 pos;
@@ -19,11 +19,12 @@ struct Vertex {
     }
 };
 
+using BufferPtr = std::shared_ptr<engine::Buffer>;
 
 struct Mesh {
     std::vector<Vertex> _vertices;
     std::vector<uint32_t> _indices;
-    AllocatedBuffer _vertexBuffer;
-    AllocatedBuffer _indexBuffer;
+    BufferPtr pVertexBuffer;
+    BufferPtr pIndexBuffer;
     bool loadFromObj(const char* filename);
 };

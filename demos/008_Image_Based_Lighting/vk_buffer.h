@@ -6,16 +6,17 @@ class VulkanEngine;
 namespace vk_base {
 	class Buffer {
 	public:
-		VkDevice device;
+		VkDevice device = VK_NULL_HANDLE;
+		VkBuffer buffer = VK_NULL_HANDLE;
+		VkDeviceMemory memory = VK_NULL_HANDLE;
 
-		VkBuffer buffer;
-		VkDeviceMemory memory;
+		VkDeviceSize size = 0;
 
-		Buffer() :device(VK_NULL_HANDLE), buffer(VK_NULL_HANDLE), memory(VK_NULL_HANDLE) {}
-			
 		Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size);
 
 		~Buffer();
+	private:
+		Buffer() {}
 	};
 }
 
@@ -25,7 +26,8 @@ namespace engine {
 		using Base::Base;
 		using BufferPtr = std::shared_ptr<Buffer>;
 	public:
-		static BufferPtr createBuffer(VulkanEngine& engine, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size, CreateResourceFlagBits bufferDescription);
+		static BufferPtr createBuffer(VulkanEngine& engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription);
+		void updateFromHost(void* hostData);
 	};
 }
 
