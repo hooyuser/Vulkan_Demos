@@ -110,8 +110,7 @@ void VulkanEngine::initVulkan() {
 	createDescriptorSetLayout();
 	createGraphicsPipeline();//recreateSwapChain
 	createCommandPool();
-	createColorResources();//recreateSwapChain
-	createDepthResources();//recreateSwapChain
+	createAttachments();//recreateSwapChain
 	createFramebuffers();//recreateSwapChain
 	createTextureImage();
 	createTextureImageView();
@@ -172,8 +171,7 @@ void VulkanEngine::recreateSwapChain() {
 	createImageViews();
 	createRenderPass();
 	createGraphicsPipeline();
-	createColorResources();
-	createDepthResources();
+	createAttachments();
 	createFramebuffers();
 	createUniformBuffers();
 	createDescriptorPool();
@@ -566,7 +564,7 @@ void VulkanEngine::createFramebuffers() {
 	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
 		std::array<VkImageView, 3> attachments = {
 			pColorImage->imageView,
-			depthImageView,
+			pDepthImage->imageView,
 			swapChainImageViews[i]
 		};
 
@@ -596,8 +594,10 @@ void VulkanEngine::createCommandPool() {
 		});
 }
 
-void VulkanEngine::createColorResources() {
+void VulkanEngine::createAttachments() {
 	VkFormat colorFormat = swapChainImageFormat;
+	VkFormat depthFormat = findDepthFormat();
+
 	pColorImage = engine::Image::createImage(*this,
 		swapChainExtent.width, 
 		swapChainExtent.height, 
@@ -609,14 +609,20 @@ void VulkanEngine::createColorResources() {
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
 		VK_IMAGE_ASPECT_COLOR_BIT, 
 		AFTER_SWAPCHAIN_BIT);
+
+	pDepthImage = engine::Image::createImage(*this,
+		swapChainExtent.width,
+		swapChainExtent.height,
+		1,
+		msaaSamples,
+		depthFormat,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_IMAGE_ASPECT_DEPTH_BIT,
+		AFTER_SWAPCHAIN_BIT);
 }
 
-void VulkanEngine::createDepthResources() {
-	VkFormat depthFormat = findDepthFormat();
-
-	createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depthImage, depthImageMemory, AFTER_SWAPCHAIN_BIT);
-	depthImageView = createImageView(depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT, 1, AFTER_SWAPCHAIN_BIT);
-}
 
 VkFormat VulkanEngine::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 	for (VkFormat format : candidates) {
@@ -867,56 +873,6 @@ VkImageView VulkanEngine::createCubemapImageView(VkImage image, VkFormat format,
 	}
 
 	return imageView;
-}
-
-void VulkanEngine::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, CreateResourceFlagBits imageDescription) {
-	VkImageCreateInfo imageInfo{};
-	imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-	imageInfo.imageType = VK_IMAGE_TYPE_2D;
-	imageInfo.extent.width = width;
-	imageInfo.extent.height = height;
-	imageInfo.extent.depth = 1;
-	imageInfo.mipLevels = mipLevels;
-	imageInfo.arrayLayers = 1;
-	imageInfo.format = format;
-	imageInfo.tiling = tiling;
-	imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	imageInfo.usage = usage;
-	imageInfo.samples = numSamples;
-	imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create image!");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate image memory!");
-	}
-
-	vkBindImageMemory(device, image, imageMemory, 0);
-
-	if (imageDescription & 0x00000001) {
-		if (imageDescription == AFTER_SWAPCHAIN_BIT) {
-			swapChainDeletionQueue.push_function([=]() {
-				vkDestroyImage(device, image, nullptr);
-				vkFreeMemory(device, imageMemory, nullptr);
-				});
-		}
-		else {
-			mainDeletionQueue.push_function([=]() {
-				vkDestroyImage(device, image, nullptr);
-				vkFreeMemory(device, imageMemory, nullptr);
-				});
-		}
-	}
 }
 
 void VulkanEngine::createCubemapImage(uint32_t width, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, CreateResourceFlagBits imageDescription) {

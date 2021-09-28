@@ -104,10 +104,11 @@ private:
 	VkCommandPool commandPool;
 
 	ImagePtr pColorImage;
+	ImagePtr pDepthImage;
 
-	VkImage depthImage;
-	VkDeviceMemory depthImageMemory;
-	VkImageView depthImageView;
+	//VkImage depthImage;
+	//VkDeviceMemory depthImageMemory;
+	//VkImageView depthImageView;
 
 	uint32_t mipLevels;
 	VkImage textureImage;
@@ -178,9 +179,7 @@ private:
 
 	void createCommandPool();
 
-	void createColorResources();
-
-	void createDepthResources();
+	void createAttachments();
 
 	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
@@ -199,8 +198,6 @@ private:
 	void createTextureSampler();
 
 	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
-
-	void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, CreateResourceFlagBits imageDescription);
 
 	void createCubemapImage(uint32_t width, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, CreateResourceFlagBits imageDescription);
 
