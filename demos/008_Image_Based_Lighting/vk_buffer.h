@@ -27,7 +27,9 @@ namespace engine {
 		using BufferPtr = std::shared_ptr<Buffer>;
 	public:
 		static BufferPtr createBuffer(VulkanEngine& engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription);
-		void updateFromHost(void* hostData);
+		void copyFromHost(void* hostData);
 	};
 }
+
+using BufferPtr = std::shared_ptr<engine::Buffer>;
 

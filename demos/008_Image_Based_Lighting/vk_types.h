@@ -32,10 +32,10 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 proj;
 };
 
-struct AllocatedBuffer {
-    VkBuffer _buffer;
-    VkDeviceMemory _bufferMemory;
-};
+//struct AllocatedBuffer {
+//    VkBuffer _buffer;
+//    VkDeviceMemory _bufferMemory;
+//};
 
 struct AllocatedImage {
     VkImage _image;

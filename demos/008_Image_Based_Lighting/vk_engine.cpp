@@ -565,7 +565,7 @@ void VulkanEngine::createFramebuffers() {
 
 	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
 		std::array<VkImageView, 3> attachments = {
-			colorImageView,
+			pColorImage->imageView,
 			depthImageView,
 			swapChainImageViews[i]
 		};
@@ -598,9 +598,17 @@ void VulkanEngine::createCommandPool() {
 
 void VulkanEngine::createColorResources() {
 	VkFormat colorFormat = swapChainImageFormat;
-
-	createImage(swapChainExtent.width, swapChainExtent.height, 1, msaaSamples, colorFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, colorImage, colorImageMemory, AFTER_SWAPCHAIN_BIT);
-	colorImageView = createImageView(colorImage, colorFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, AFTER_SWAPCHAIN_BIT);
+	pColorImage = engine::Image::createImage(*this,
+		swapChainExtent.width, 
+		swapChainExtent.height, 
+		1, 
+		msaaSamples, 
+		colorFormat, 
+		VK_IMAGE_TILING_OPTIMAL, 
+		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
+		VK_IMAGE_ASPECT_COLOR_BIT, 
+		AFTER_SWAPCHAIN_BIT);
 }
 
 void VulkanEngine::createDepthResources() {
@@ -1053,7 +1061,7 @@ void VulkanEngine::createVertexBuffer(Mesh& mesh) {
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
 		TEMP_BIT);
 
-	pStagingBuffer->updateFromHost(mesh._vertices.data());
+	pStagingBuffer->copyFromHost(mesh._vertices.data());
 
 	mesh.pVertexBuffer = engine::Buffer::createBuffer(*this,
 		bufferSize,
@@ -1073,7 +1081,7 @@ void VulkanEngine::createIndexBuffer(Mesh& mesh) {
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		TEMP_BIT);
 
-	pStagingBuffer->updateFromHost(mesh._indices.data());
+	pStagingBuffer->copyFromHost(mesh._indices.data());
 
 	mesh.pIndexBuffer = engine::Buffer::createBuffer(*this,
 		bufferSize,
@@ -1085,15 +1093,15 @@ void VulkanEngine::createIndexBuffer(Mesh& mesh) {
 }
 
 void VulkanEngine::createUniformBuffers() {
-	VkDeviceSize bufferSize = sizeof(UniformBufferObject);
-
-	uniformBuffers.resize(swapChainImages.size());
-	uniformBuffersMemory.resize(swapChainImages.size());
+	pUniformBuffers.resize(swapChainImages.size());
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
-		createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBuffers[i], uniformBuffersMemory[i], AFTER_SWAPCHAIN_BIT);
+		pUniformBuffers[i] = engine::Buffer::createBuffer(*this,
+			sizeof(UniformBufferObject),
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			AFTER_SWAPCHAIN_BIT);
 	}
-
 }
 
 void VulkanEngine::createDescriptorPool() {
@@ -1133,7 +1141,7 @@ void VulkanEngine::createDescriptorSets() {
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
 		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = uniformBuffers[i];
+		bufferInfo.buffer = pUniformBuffers[i]->buffer;
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
@@ -1161,48 +1169,6 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[1].pImageInfo = &imageInfo;
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-	}
-}
-
-void VulkanEngine::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, CreateResourceFlagBits bufferDescription) {
-	VkBufferCreateInfo bufferInfo{};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = size;
-	bufferInfo.usage = usage;
-	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-	if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create buffer!");
-	}
-
-	VkMemoryRequirements memRequirements;
-	vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
-
-	VkMemoryAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate buffer memory!");
-	}
-
-	vkBindBufferMemory(device, buffer, bufferMemory, 0);
-
-	if (bufferDescription & 0x00000001) {
-		if (bufferDescription == AFTER_SWAPCHAIN_BIT) {
-			swapChainDeletionQueue.push_function([=]() {
-				vkDestroyBuffer(device, buffer, nullptr);
-				vkFreeMemory(device, bufferMemory, nullptr);
-				});
-		}
-		else
-		{
-			mainDeletionQueue.push_function([=]() {
-				vkDestroyBuffer(device, buffer, nullptr);
-				vkFreeMemory(device, bufferMemory, nullptr);
-				});
-		}
 	}
 }
 
@@ -1344,10 +1310,7 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 	//ubo.proj[1][1] *= -1;
 
-	void* data;
-	vkMapMemory(device, uniformBuffersMemory[currentImage], 0, sizeof(ubo), 0, &data);
-	memcpy(data, &ubo, sizeof(ubo));
-	vkUnmapMemory(device, uniformBuffersMemory[currentImage]);
+	pUniformBuffers[currentImage]->copyFromHost(&ubo);
 }
 
 void VulkanEngine::drawFrame() {

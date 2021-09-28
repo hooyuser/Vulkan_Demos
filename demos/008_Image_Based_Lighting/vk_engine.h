@@ -4,6 +4,7 @@
 #include "vk_mesh.h"
 #include "vk_camera.h"
 #include "vk_buffer.h"
+#include "vk_image.h"
 
 // #define GLFW_INCLUDE_VULKAN
 
@@ -102,9 +103,7 @@ private:
 
 	VkCommandPool commandPool;
 
-	VkImage colorImage;
-	VkDeviceMemory colorImageMemory;
-	VkImageView colorImageView;
+	ImagePtr pColorImage;
 
 	VkImage depthImage;
 	VkDeviceMemory depthImageMemory;
@@ -117,13 +116,8 @@ private:
 	VkSampler textureSampler;
 
 	Mesh meshSkyBox;
-	VkBuffer vertexBuffer;
-	VkDeviceMemory vertexBufferMemory;
-	VkBuffer indexBuffer;
-	VkDeviceMemory indexBufferMemory;
 
-	std::vector<VkBuffer> uniformBuffers;
-	std::vector<VkDeviceMemory> uniformBuffersMemory;
+	std::vector<BufferPtr> pUniformBuffers;
 
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> descriptorSets;
@@ -230,8 +224,6 @@ private:
 
 	void createDescriptorSets();
 
-	void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory, CreateResourceFlagBits bufferDescription);
-
 	VkCommandBuffer beginSingleTimeCommands();
 
 	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
@@ -281,6 +273,7 @@ private:
 	void setCamera();
 
 	friend class ::engine::Buffer;
+	friend class ::engine::Image;
 };
 
 

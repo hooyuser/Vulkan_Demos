@@ -1,6 +1,7 @@
 #include "vk_buffer.h"
 #include "vk_util.h"
 #include "vk_engine.h"
+
 #include <stdexcept>
 
 
@@ -69,7 +70,7 @@ namespace engine {
 		return pBuffer;
 	}
 
-	void Buffer::updateFromHost(void* hostData) {
+	void Buffer::copyFromHost(void* hostData) {
 		void* data;
 		vkMapMemory(device, memory, 0, size, 0, &data);
 		memcpy(data, hostData, (size_t)size);

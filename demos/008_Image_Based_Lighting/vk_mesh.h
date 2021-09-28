@@ -19,8 +19,6 @@ struct Vertex {
     }
 };
 
-using BufferPtr = std::shared_ptr<engine::Buffer>;
-
 struct Mesh {
     std::vector<Vertex> _vertices;
     std::vector<uint32_t> _indices;
