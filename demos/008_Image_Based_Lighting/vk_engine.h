@@ -74,7 +74,7 @@ public:
 		cleanup();
 	}
 
-private:
+//private:
 	struct GLFWwindow* window{ nullptr };
 
 	VkInstance instance;
@@ -106,15 +106,7 @@ private:
 	ImagePtr pColorImage;
 	ImagePtr pDepthImage;
 
-	//VkImage depthImage;
-	//VkDeviceMemory depthImageMemory;
-	//VkImageView depthImageView;
-
-	uint32_t mipLevels;
-	VkImage textureImage;
-	VkDeviceMemory textureImageMemory;
-	VkImageView textureImageView;
-	VkSampler textureSampler;
+	TexturePtr pEnvCubemap;
 
 	Mesh meshSkyBox;
 
@@ -195,15 +187,7 @@ private:
 
 	void createTextureImageView();
 
-	void createTextureSampler();
-
 	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
-
-	void createCubemapImage(uint32_t width, uint32_t mipLevels, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory, CreateResourceFlagBits imageDescription);
-
-	VkImageView createCubemapImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
-
-	void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels, uint32_t layerCount);
 
 	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount = 1);
 
@@ -268,9 +252,6 @@ private:
 	static void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 	void setCamera();
-
-	friend class ::engine::Buffer;
-	friend class ::engine::Image;
 };
 
 

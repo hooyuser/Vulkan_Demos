@@ -47,25 +47,16 @@ namespace vk_base {
 namespace engine {
 	using BufferPtr = std::shared_ptr<Buffer>;
 
-	BufferPtr Buffer::createBuffer(VulkanEngine& engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription) {
-		auto pBuffer = std::make_shared<Buffer>(engine.device, engine.physicalDevice, bufferUsage, memoryProperties, size);
+	BufferPtr Buffer::createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription) {
+		auto pBuffer = std::make_shared<Buffer>(engine->device, engine->physicalDevice, bufferUsage, memoryProperties, size);
 		if (bufferDescription & 0x00000001) {
-			if (bufferDescription == AFTER_SWAPCHAIN_BIT) {
-				engine.swapChainDeletionQueue.push_function([=]() {
-					vkDestroyBuffer(pBuffer->device, pBuffer->buffer, nullptr);
-					vkFreeMemory(pBuffer->device, pBuffer->memory, nullptr);
-					pBuffer->buffer = VK_NULL_HANDLE;
-					pBuffer->memory = VK_NULL_HANDLE;
-					});
-			}
-			else {
-				engine.mainDeletionQueue.push_function([=]() {
-					vkDestroyBuffer(pBuffer->device, pBuffer->buffer, nullptr);
-					vkFreeMemory(pBuffer->device, pBuffer->memory, nullptr);
-					pBuffer->buffer = VK_NULL_HANDLE;
-					pBuffer->memory = VK_NULL_HANDLE;
-					});
-			}
+			((bufferDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->mainDeletionQueue).push_function([=]() {
+				vkDestroyBuffer(pBuffer->device, pBuffer->buffer, nullptr);
+				vkFreeMemory(pBuffer->device, pBuffer->memory, nullptr);
+				pBuffer->buffer = VK_NULL_HANDLE;
+				pBuffer->memory = VK_NULL_HANDLE;
+				});
+
 		}
 		return pBuffer;
 	}
