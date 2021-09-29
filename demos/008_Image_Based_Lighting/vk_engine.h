@@ -202,12 +202,6 @@ public:
 
 	void loadModel();
 
-	//void uploadMesh(MeshPtr mesh);
-
-	//void createVertexBuffer(MeshPtr mesh);
-
-	//void createIndexBuffer(MeshPtr mesh);
-
 	void createUniformBuffers();
 
 	void createDescriptorPool();

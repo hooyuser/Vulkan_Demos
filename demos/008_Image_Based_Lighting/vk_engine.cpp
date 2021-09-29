@@ -742,51 +742,6 @@ void VulkanEngine::loadModel() {
 	meshes.emplace("skybox", Mesh::createFromObj(this, "assets/models/skybox.obj"));
 }
 
-//void VulkanEngine::uploadMesh(MeshPtr mesh) {
-//	createVertexBuffer(mesh);
-//	createIndexBuffer(mesh);
-//}
-//
-//void VulkanEngine::createVertexBuffer(MeshPtr mesh) {
-//	VkDeviceSize bufferSize = sizeof(mesh->_vertices[0]) * mesh->_vertices.size();
-//
-//	auto pStagingBuffer = engine::Buffer::createBuffer(this, 
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-//		TEMP_BIT);
-//
-//	pStagingBuffer->copyFromHost(mesh->_vertices.data());
-//
-//	mesh->pVertexBuffer = engine::Buffer::createBuffer(this,
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-//		BEFORE_SWAPCHAIN_BIT);
-//
-//	copyBuffer(pStagingBuffer->buffer, mesh->pVertexBuffer->buffer, bufferSize);
-//}
-//
-//void VulkanEngine::createIndexBuffer(MeshPtr mesh) {
-//	VkDeviceSize bufferSize = sizeof(mesh->_indices[0]) * mesh->_indices.size();
-//
-//	auto pStagingBuffer = engine::Buffer::createBuffer(this,
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-//		TEMP_BIT);
-//
-//	pStagingBuffer->copyFromHost(mesh->_indices.data());
-//
-//	mesh->pIndexBuffer = engine::Buffer::createBuffer(this,
-//		bufferSize,
-//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-//		BEFORE_SWAPCHAIN_BIT);
-//
-//	copyBuffer(pStagingBuffer->buffer, mesh->pIndexBuffer->buffer, bufferSize);
-//}
-
 void VulkanEngine::createUniformBuffers() {
 	pUniformBuffers.resize(swapChainImages.size());
 
