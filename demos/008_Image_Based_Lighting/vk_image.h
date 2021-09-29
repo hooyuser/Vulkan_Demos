@@ -65,7 +65,11 @@ namespace engine {
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, 
 			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription);
 
+		static TexturePtr create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription);
+
 		static TexturePtr createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription);
+
+		static TexturePtr load2DTexture(VulkanEngine* engine, const char* filePath);
 
 		static TexturePtr loadCubemapTexture(VulkanEngine* engine, const char** filePaths);
 	};

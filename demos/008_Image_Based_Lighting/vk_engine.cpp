@@ -481,8 +481,8 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	PipelineBuilder pipelineBuilder;
 
-	auto vertShaderCode = readFile(VERTEX_SHADER_PATH);
-	auto fragShaderCode = readFile(FRAGMENT_SHADER_PATH);
+	auto vertShaderCode = readFile("assets/shaders/env_cubemap.vert.spv");
+	auto fragShaderCode = readFile("assets/shaders/env_cubemap.frag.spv");
 
 	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
 	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -649,6 +649,7 @@ void VulkanEngine::createTextureImage() {
 	};
 
 	loadedTextures.emplace("env_cubemap", engine::Texture::loadCubemapTexture(this, cubemapPath));
+	loadedTextures.emplace("viking_room", engine::Texture::load2DTexture(this, "assets/textures/viking_room.png"));
 }
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {

@@ -371,6 +371,31 @@ namespace engine {
 		return pTexture;
 	}
 
+	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription) {
+		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
+		auto pTexture = std::make_shared<Texture>(engine->device,
+			engine->physicalDevice,
+			width,
+			width,
+			mipLevels,
+			VK_SAMPLE_COUNT_1_BIT,
+			format,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_FILTER_LINEAR);
+		if (imageDescription & 0x00000001) {
+			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->mainDeletionQueue).push_function([=]() {
+				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
+				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImage(engine->device, pTexture->image, nullptr);
+				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				});
+		}
+		return pTexture;
+	}
+
 	TexturePtr Texture::createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription) {
 		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(width))) + 1;
 		auto pTexture = std::make_shared<Texture>(engine->device,
@@ -396,6 +421,35 @@ namespace engine {
 				});
 		}
 		return pTexture;
+	}
+
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath) {
+		int texWidth, texHeight, texChannels;
+		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		if (!pixels) {
+			throw std::runtime_error("failed to load texture image!");
+		}
+
+		auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+			imageSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			TEMP_BIT);
+		pStagingBuffer->copyFromHost(pixels);
+
+		auto pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, BEFORE_SWAPCHAIN_BIT);
+
+		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		pTexture->copyFromBuffer(engine, pStagingBuffer->buffer);
+
+		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+
+		pTexture->generateMipmaps(engine);
+
+		return pTexture;
+
 	}
 
 	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const char** filePaths) {
