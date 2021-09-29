@@ -19,10 +19,17 @@ struct Vertex {
     }
 };
 
-struct Mesh {
+class Mesh;
+using MeshPtr = std::shared_ptr<Mesh>;
+class Mesh {
+public:
     std::vector<Vertex> _vertices;
     std::vector<uint32_t> _indices;
     BufferPtr pVertexBuffer;
     BufferPtr pIndexBuffer;
-    bool loadFromObj(const char* filename);
+    static MeshPtr createFromObj(const char* filename);
+    static MeshPtr createFromObj(VulkanEngine* engine, const char* filename);
 };
+
+
+

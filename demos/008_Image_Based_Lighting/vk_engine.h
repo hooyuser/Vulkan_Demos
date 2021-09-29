@@ -61,7 +61,11 @@ public:
 };
 
 
-
+struct RenderObject {
+	MeshPtr mesh;
+	Material* material;
+	glm::mat4 transformMatrix;
+};
 
 class VulkanEngine {
 public:
@@ -74,7 +78,7 @@ public:
 		cleanup();
 	}
 
-//private:
+
 	struct GLFWwindow* window{ nullptr };
 
 	VkInstance instance;
@@ -108,7 +112,12 @@ public:
 
 	TexturePtr pEnvCubemap;
 
-	Mesh meshSkyBox;
+	//Mesh meshSkyBox;
+	std::vector<RenderObject> _renderables;
+
+	std::unordered_map<std::string, Material> _materials;
+	std::unordered_map<std::string, MeshPtr> meshes;
+	std::unordered_map<std::string, TexturePtr> loadedTextures;
 
 	std::vector<BufferPtr> pUniformBuffers;
 
@@ -193,11 +202,11 @@ public:
 
 	void loadModel();
 
-	void uploadMesh(Mesh& mesh);
+	//void uploadMesh(MeshPtr mesh);
 
-	void createVertexBuffer(Mesh& mesh);
+	//void createVertexBuffer(MeshPtr mesh);
 
-	void createIndexBuffer(Mesh& mesh);
+	//void createIndexBuffer(MeshPtr mesh);
 
 	void createUniformBuffers();
 

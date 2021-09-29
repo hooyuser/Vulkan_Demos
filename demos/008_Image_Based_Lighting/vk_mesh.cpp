@@ -57,7 +57,8 @@ std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions(
 	return attributeDescriptions;
 }
 
-bool Mesh::loadFromObj(const char* filename) {
+MeshPtr Mesh::createFromObj(const char* filename) {
+	auto mesh = std::make_shared<Mesh>();
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
 	std::vector<tinyobj::material_t> materials;
@@ -87,13 +88,55 @@ bool Mesh::loadFromObj(const char* filename) {
 			vertex.color = { 1.0f, 1.0f, 1.0f };
 
 			if (uniqueVertices.count(vertex) == 0) {
-				uniqueVertices[vertex] = static_cast<uint32_t>(_vertices.size());
-				_vertices.push_back(vertex);
+				uniqueVertices[vertex] = static_cast<uint32_t>(mesh->_vertices.size());
+				mesh->_vertices.emplace_back(vertex);
 			}
 
-			_indices.push_back(uniqueVertices[vertex]);
+			mesh->_indices.emplace_back(uniqueVertices[vertex]);
 		}
 	}
 
-	return true;
+	return mesh;
+}
+
+static MeshPtr createFromObj(VulkanEngine* engine, const char* filename) {
+	auto mesh = Mesh::createFromObj(filename);
+
+	VkDeviceSize vertexbufferSize = sizeof(mesh->_vertices[0]) * mesh->_vertices.size();
+
+	auto pStagingVertexBuffer = engine::Buffer::createBuffer(engine,
+		vertexbufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		TEMP_BIT);
+
+	pStagingVertexBuffer->copyFromHost(mesh->_vertices.data());
+
+	mesh->pVertexBuffer = engine::Buffer::createBuffer(engine,
+		vertexbufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		BEFORE_SWAPCHAIN_BIT);
+
+	mesh->pVertexBuffer->copyFromBuffer(engine, pStagingVertexBuffer->buffer);
+
+	VkDeviceSize indexBufferSize = sizeof(mesh->_indices[0]) * mesh->_indices.size();
+
+	auto pStagingIndexBuffer = engine::Buffer::createBuffer(engine,
+		indexBufferSize,
+		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		TEMP_BIT);
+
+	pStagingIndexBuffer->copyFromHost(mesh->_indices.data());
+
+	mesh->pIndexBuffer = engine::Buffer::createBuffer(engine,
+		indexBufferSize,
+		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		BEFORE_SWAPCHAIN_BIT);
+
+	mesh->pIndexBuffer->copyFromBuffer(engine, pStagingIndexBuffer->buffer);
+
+	return mesh;
 }

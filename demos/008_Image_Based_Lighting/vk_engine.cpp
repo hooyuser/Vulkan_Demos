@@ -10,7 +10,7 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "assets/models/skybox.obj";
+//const std::string MODEL_PATH = "assets/models/skybox.obj";
 const std::string TEXTURE_PATH[6] = {
 	"assets/textures/output_pos_x.hdr",
 	"assets/textures/output_neg_x.hdr",
@@ -738,54 +738,54 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 }
 
 void VulkanEngine::loadModel() {
-	meshSkyBox.loadFromObj(MODEL_PATH.c_str());
-	uploadMesh(meshSkyBox);
+	meshes.emplace("viking_room", Mesh::createFromObj(this, "assets/models/viking_room.obj"));
+	meshes.emplace("skybox", Mesh::createFromObj(this, "assets/models/skybox.obj"));
 }
 
-void VulkanEngine::uploadMesh(Mesh& mesh) {
-	createVertexBuffer(mesh);
-	createIndexBuffer(mesh);
-}
-
-void VulkanEngine::createVertexBuffer(Mesh& mesh) {
-	VkDeviceSize bufferSize = sizeof(mesh._vertices[0]) * mesh._vertices.size();
-
-	auto pStagingBuffer = engine::Buffer::createBuffer(this, 
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
-		TEMP_BIT);
-
-	pStagingBuffer->copyFromHost(mesh._vertices.data());
-
-	mesh.pVertexBuffer = engine::Buffer::createBuffer(this,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		BEFORE_SWAPCHAIN_BIT);
-
-	copyBuffer(pStagingBuffer->buffer, mesh.pVertexBuffer->buffer, bufferSize);
-}
-
-void VulkanEngine::createIndexBuffer(Mesh& mesh) {
-	VkDeviceSize bufferSize = sizeof(mesh._indices[0]) * mesh._indices.size();
-
-	auto pStagingBuffer = engine::Buffer::createBuffer(this,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		TEMP_BIT);
-
-	pStagingBuffer->copyFromHost(mesh._indices.data());
-
-	mesh.pIndexBuffer = engine::Buffer::createBuffer(this,
-		bufferSize,
-		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		BEFORE_SWAPCHAIN_BIT);
-
-	copyBuffer(pStagingBuffer->buffer, mesh.pIndexBuffer->buffer, bufferSize);
-}
+//void VulkanEngine::uploadMesh(MeshPtr mesh) {
+//	createVertexBuffer(mesh);
+//	createIndexBuffer(mesh);
+//}
+//
+//void VulkanEngine::createVertexBuffer(MeshPtr mesh) {
+//	VkDeviceSize bufferSize = sizeof(mesh->_vertices[0]) * mesh->_vertices.size();
+//
+//	auto pStagingBuffer = engine::Buffer::createBuffer(this, 
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, 
+//		TEMP_BIT);
+//
+//	pStagingBuffer->copyFromHost(mesh->_vertices.data());
+//
+//	mesh->pVertexBuffer = engine::Buffer::createBuffer(this,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		BEFORE_SWAPCHAIN_BIT);
+//
+//	copyBuffer(pStagingBuffer->buffer, mesh->pVertexBuffer->buffer, bufferSize);
+//}
+//
+//void VulkanEngine::createIndexBuffer(MeshPtr mesh) {
+//	VkDeviceSize bufferSize = sizeof(mesh->_indices[0]) * mesh->_indices.size();
+//
+//	auto pStagingBuffer = engine::Buffer::createBuffer(this,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+//		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+//		TEMP_BIT);
+//
+//	pStagingBuffer->copyFromHost(mesh->_indices.data());
+//
+//	mesh->pIndexBuffer = engine::Buffer::createBuffer(this,
+//		bufferSize,
+//		VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		BEFORE_SWAPCHAIN_BIT);
+//
+//	copyBuffer(pStagingBuffer->buffer, mesh->pIndexBuffer->buffer, bufferSize);
+//}
 
 void VulkanEngine::createUniformBuffers() {
 	pUniformBuffers.resize(swapChainImages.size());
@@ -946,15 +946,15 @@ void VulkanEngine::createCommandBuffers() {
 
 		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-		VkBuffer vertexBuffers[] = { meshSkyBox.pVertexBuffer->buffer };
+		VkBuffer vertexBuffers[] = { meshes["skybox"]->pVertexBuffer->buffer};
 		VkDeviceSize offsets[] = { 0 };
 		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
-		vkCmdBindIndexBuffer(commandBuffers[i], meshSkyBox.pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindIndexBuffer(commandBuffers[i], meshes["skybox"]->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
 
-		vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(meshSkyBox._indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(meshes["skybox"]->_indices.size()), 1, 0, 0, 0);
 
 		vkCmdEndRenderPass(commandBuffers[i]);
 

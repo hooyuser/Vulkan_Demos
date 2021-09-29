@@ -7,6 +7,7 @@ namespace vk_base {
 	class Buffer {
 	public:
 		VkDevice device = VK_NULL_HANDLE;
+
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 
@@ -28,6 +29,7 @@ namespace engine {
 	public:
 		static BufferPtr createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription);
 		void copyFromHost(void* hostData);
+		void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer);
 	};
 }
 
