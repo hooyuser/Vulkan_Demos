@@ -28,7 +28,6 @@ const bool enableValidationLayers = true;
 #endif
 
 
-
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
 	auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
 	if (func != nullptr) {
@@ -530,7 +529,7 @@ void VulkanEngine::createGraphicsPipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	pipelineBuilder.build_pipeline(device, renderPass, pipelineLayout, graphicsPipeline);
+	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, graphicsPipeline);
 
 	swapChainDeletionQueue.push_function([=]() {
 		//destroy the 2 pipelines we have created
@@ -1233,7 +1232,7 @@ void VulkanEngine::setCamera() {
 }
 
 
-void PipelineBuilder::build_pipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
+void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
 	VkGraphicsPipelineCreateInfo pipelineInfo{};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	pipelineInfo.stageCount = 2;

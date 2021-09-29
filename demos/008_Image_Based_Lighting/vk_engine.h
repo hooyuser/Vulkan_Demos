@@ -33,7 +33,7 @@ struct DeletionQueue
 	std::deque<std::function<void()>> deletors;
 
 	void push_function(std::function<void()>&& function) {
-		deletors.push_back(function);
+		deletors.emplace_back(function);
 	}
 
 	void flush() {
@@ -57,7 +57,7 @@ public:
 	VkPipelineMultisampleStateCreateInfo multisampling;
 	VkPipelineDepthStencilStateCreateInfo depthStencil;
 
-	void build_pipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
+	void buildPipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 };
 
 
@@ -110,9 +110,6 @@ public:
 	ImagePtr pColorImage;
 	ImagePtr pDepthImage;
 
-	TexturePtr pEnvCubemap;
-
-	//Mesh meshSkyBox;
 	std::vector<RenderObject> renderables;
 
 	std::unordered_map<std::string, Material> materials;
