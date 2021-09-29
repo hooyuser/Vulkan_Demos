@@ -4,21 +4,9 @@
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include <stb_image.h>
-
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-//const std::string MODEL_PATH = "assets/models/skybox.obj";
-const std::string TEXTURE_PATH[6] = {
-	"assets/textures/output_pos_x.hdr",
-	"assets/textures/output_neg_x.hdr",
-	"assets/textures/output_pos_y.hdr",
-	"assets/textures/output_neg_y.hdr",
-	"assets/textures/output_pos_z.hdr",
-	"assets/textures/output_neg_z.hdr"
-};
 const std::string VERTEX_SHADER_PATH = "assets/shaders/vert.spv";
 const std::string FRAGMENT_SHADER_PATH = "assets/shaders/frag.spv";
 
@@ -651,41 +639,17 @@ bool VulkanEngine::hasStencilComponent(VkFormat format) {
 }
 
 void VulkanEngine::createTextureImage() {
-	int texWidth, texHeight, texChannels;
-	float* pixels[6];
-	for (int i = 0; i < 6; i++) {
-		pixels[i] = stbi_loadf(TEXTURE_PATH[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
-		if (!pixels[i]) {
-			throw std::runtime_error("failed to load texture image!");
-		}
-	}
+	
+	const char* cubemapPath[6] = {
+		"assets/textures/output_pos_x.hdr",
+		"assets/textures/output_neg_x.hdr",
+		"assets/textures/output_pos_y.hdr",
+		"assets/textures/output_neg_y.hdr",
+		"assets/textures/output_pos_z.hdr",
+		"assets/textures/output_neg_z.hdr"
+	};
 
-	const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
-	VkDeviceSize imageSize = layerSize * 6;
-
-	auto pStagingBuffer = engine::Buffer::createBuffer(this,
-		imageSize,
-		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		TEMP_BIT);
-
-	void* data;
-	vkMapMemory(device, pStagingBuffer->memory, 0, imageSize, 0, &data);
-	for (int i = 0; i < 6; i++) {
-		memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
-		stbi_image_free(pixels[i]);
-	}
-	vkUnmapMemory(device, pStagingBuffer->memory);
-
-	pEnvCubemap = engine::Texture::createCubemapTexture(this, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, BEFORE_SWAPCHAIN_BIT);
-
-	pEnvCubemap->transitionImageLayout(this, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-	pEnvCubemap->copyFromBuffer(this, pStagingBuffer->buffer);
-
-	//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-
-	pEnvCubemap->generateMipmaps(this);
+	loadedTextures.emplace("env_cubemap", engine::Texture::loadCubemapTexture(this, cubemapPath));
 }
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
@@ -738,8 +702,8 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 }
 
 void VulkanEngine::loadModel() {
-	meshes.emplace("viking_room", Mesh::createFromObj(this, "assets/models/viking_room.obj"));
-	meshes.emplace("skybox", Mesh::createFromObj(this, "assets/models/skybox.obj"));
+	meshes.emplace("viking_room", Mesh::loadFromObj(this, "assets/models/viking_room.obj"));
+	meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj"));
 }
 
 void VulkanEngine::createUniformBuffers() {
@@ -797,8 +761,8 @@ void VulkanEngine::createDescriptorSets() {
 
 		VkDescriptorImageInfo imageInfo{};
 		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = pEnvCubemap->imageView;
-		imageInfo.sampler = pEnvCubemap->sampler;
+		imageInfo.imageView = loadedTextures["env_cubemap"]->imageView;
+		imageInfo.sampler = loadedTextures["env_cubemap"]->sampler;
 
 		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 

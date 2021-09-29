@@ -99,7 +99,7 @@ MeshPtr Mesh::createFromObj(const char* filename) {
 	return mesh;
 }
 
-MeshPtr Mesh::createFromObj(VulkanEngine* engine, const char* filename) {
+MeshPtr Mesh::loadFromObj(VulkanEngine* engine, const char* filename) {
 	auto mesh = Mesh::createFromObj(filename);
 
 	VkDeviceSize vertexbufferSize = sizeof(mesh->_vertices[0]) * mesh->_vertices.size();

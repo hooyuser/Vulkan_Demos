@@ -113,9 +113,9 @@ public:
 	TexturePtr pEnvCubemap;
 
 	//Mesh meshSkyBox;
-	std::vector<RenderObject> _renderables;
+	std::vector<RenderObject> renderables;
 
-	std::unordered_map<std::string, Material> _materials;
+	std::unordered_map<std::string, Material> materials;
 	std::unordered_map<std::string, MeshPtr> meshes;
 	std::unordered_map<std::string, TexturePtr> loadedTextures;
 

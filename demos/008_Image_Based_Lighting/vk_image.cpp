@@ -4,8 +4,8 @@
 
 #include <stdexcept>
 
-//#define STB_IMAGE_IMPLEMENTATION
-//#include <stb_image.h>
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 namespace vk_init {
 	VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels,
@@ -395,6 +395,46 @@ namespace engine {
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				});
 		}
+		return pTexture;
+	}
+
+	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const char** filePaths) {
+		int texWidth, texHeight, texChannels;
+		float* pixels[6];
+		for (int i = 0; i < 6; i++) {
+			pixels[i] = stbi_loadf(filePaths[i], &texWidth, &texHeight, &texChannels, 4);
+			if (!pixels[i]) {
+				throw std::runtime_error("failed to load texture image!");
+			}
+		}
+
+		const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
+		VkDeviceSize imageSize = layerSize * 6;
+
+		auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+			imageSize,
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			TEMP_BIT);
+
+		void* data;
+		vkMapMemory(engine->device, pStagingBuffer->memory, 0, imageSize, 0, &data);
+		for (int i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+			stbi_image_free(pixels[i]);
+		}
+		vkUnmapMemory(engine->device, pStagingBuffer->memory);
+
+		auto pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, BEFORE_SWAPCHAIN_BIT);
+
+		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		pTexture->copyFromBuffer(engine, pStagingBuffer->buffer);
+
+		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+
+		pTexture->generateMipmaps(engine);
+
 		return pTexture;
 	}
 }

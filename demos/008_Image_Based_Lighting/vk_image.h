@@ -66,6 +66,8 @@ namespace engine {
 			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription);
 
 		static TexturePtr createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription);
+
+		static TexturePtr loadCubemapTexture(VulkanEngine* engine, const char** filePaths);
 	};
 }
 

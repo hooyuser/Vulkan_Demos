@@ -28,7 +28,7 @@ public:
     BufferPtr pVertexBuffer;
     BufferPtr pIndexBuffer;
     static MeshPtr createFromObj(const char* filename);
-    static MeshPtr createFromObj(VulkanEngine* engine, const char* filename);
+    static MeshPtr loadFromObj(VulkanEngine* engine, const char* filename);
 };
 
 
