@@ -47,6 +47,11 @@ struct Material {
     VkDescriptorSet textureSet{ VK_NULL_HANDLE };
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
+
+    inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
+    }
 };
+
+using MaterialPtr = std::shared_ptr<Material>;
 
 

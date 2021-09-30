@@ -190,32 +190,17 @@ VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, V
 	return framebufferInfo;
 }
 
-//VkSamplerCreateInfo vkinit::samplerCreateInfo(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels, VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
-//	VkPhysicalDeviceProperties properties{};
-//	vkGetPhysicalDeviceProperties(physicalDevice, &properties);
-//
-//	VkSamplerCreateInfo samplerInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-//
-//	samplerInfo.pNext = nullptr;
-//	samplerInfo.magFilter = filters;
-//	samplerInfo.minFilter = filters;
-//	samplerInfo.addressModeU = samplerAdressMode;
-//	samplerInfo.addressModeV = samplerAdressMode;
-//	samplerInfo.addressModeW = samplerAdressMode;
-//	samplerInfo.anisotropyEnable = VK_TRUE;
-//	samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-//	samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-//	samplerInfo.unnormalizedCoordinates = VK_FALSE;
-//	samplerInfo.compareEnable = VK_FALSE;
-//	samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-//	samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-//	samplerInfo.minLod = 0.0f;
-//	samplerInfo.maxLod = static_cast<float>(mipLevels);
-//	samplerInfo.mipLodBias = 0.0f;
-//
-//	return samplerInfo;
-//}
+VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding)
+{
+	VkDescriptorSetLayoutBinding setbind = {};
+	setbind.binding = binding;
+	setbind.descriptorCount = 1;
+	setbind.descriptorType = type;
+	setbind.pImmutableSamplers = nullptr;
+	setbind.stageFlags = stageFlags;
 
+	return setbind;
+}
 
 VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags flags /*= 0*/)
 {

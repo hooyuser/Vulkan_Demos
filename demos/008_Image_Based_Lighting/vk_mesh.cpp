@@ -9,7 +9,8 @@
 namespace std {
 	template<> struct hash<Vertex> {
 		size_t operator()(Vertex const& vertex) const {
-			return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+			return hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+			//return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
 		}
 	};
 }
@@ -29,29 +30,21 @@ std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions(
 	std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
 	attributeDescriptions.reserve(CountMember<Vertex>::value);
 
-	//Position will be stored at Location 0
+
 	VkVertexInputAttributeDescription posAttributeDescription = {};
 	posAttributeDescription.binding = 0;
 	posAttributeDescription.location = 0;
 	posAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
 	posAttributeDescription.offset = offsetof(Vertex, pos);
 
-	//Normal will be stored at Location 1
-	VkVertexInputAttributeDescription colorAttributeDescription = {};
-	colorAttributeDescription.binding = 0;
-	colorAttributeDescription.location = 1;
-	colorAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
-	colorAttributeDescription.offset = offsetof(Vertex, color);
 
-	//Position will be stored at Location 2
 	VkVertexInputAttributeDescription texCoordAttributeDescription = {};
 	texCoordAttributeDescription.binding = 0;
-	texCoordAttributeDescription.location = 2;
+	texCoordAttributeDescription.location = 1;
 	texCoordAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
 	texCoordAttributeDescription.offset = offsetof(Vertex, texCoord);
 
 	attributeDescriptions.emplace_back(posAttributeDescription);
-	attributeDescriptions.emplace_back(colorAttributeDescription);
 	attributeDescriptions.emplace_back(texCoordAttributeDescription);
 
 	return attributeDescriptions;
@@ -84,8 +77,6 @@ MeshPtr Mesh::createFromObj(const char* filename) {
 				attrib.texcoords[2 * index.texcoord_index + 0],
 				1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
 			};
-
-			vertex.color = { 1.0f, 1.0f, 1.0f };
 
 			if (uniqueVertices.count(vertex) == 0) {
 				uniqueVertices[vertex] = static_cast<uint32_t>(mesh->_vertices.size());

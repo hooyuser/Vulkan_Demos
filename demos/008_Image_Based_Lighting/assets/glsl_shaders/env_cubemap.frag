@@ -1,6 +1,7 @@
 #version 450
+#extension GL_KHR_vulkan_glsl: enable
 
-layout(binding = 1) uniform samplerCube texSampler;
+layout(set = 0, binding = 1) uniform samplerCube texSampler;
 
 layout(location = 0) in vec3 fragTexCoord;
 

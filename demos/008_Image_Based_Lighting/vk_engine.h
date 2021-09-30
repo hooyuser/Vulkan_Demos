@@ -63,7 +63,7 @@ public:
 
 struct RenderObject {
 	MeshPtr mesh;
-	Material* material;
+	MaterialPtr material;
 	glm::mat4 transformMatrix;
 };
 
@@ -103,7 +103,8 @@ public:
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout descriptorSetLayout;
 	VkPipelineLayout pipelineLayout;
-	VkPipeline graphicsPipeline;
+	VkPipeline meshPipeline;
+	VkPipeline envPipeline;
 
 	VkCommandPool commandPool;
 
@@ -112,7 +113,7 @@ public:
 
 	std::vector<RenderObject> renderables;
 
-	std::unordered_map<std::string, Material> materials;
+	std::unordered_map<std::string, MaterialPtr> materials;
 	std::unordered_map<std::string, MeshPtr> meshes;
 	std::unordered_map<std::string, TexturePtr> loadedTextures;
 
@@ -217,6 +218,8 @@ public:
 
 	void createSyncObjects();
 
+	void initScene();
+
 	void updateUniformBuffer(uint32_t currentImage);
 
 	void drawFrame();
@@ -252,6 +255,14 @@ public:
 	static void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 	void setCamera();
+
+
+	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
+	{
+		auto pMat = std::make_shared<Material>(pipeline, layout);
+		materials[name] = pMat;
+		return materials[name];
+	}
 };
 
 

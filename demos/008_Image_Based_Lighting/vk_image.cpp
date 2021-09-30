@@ -147,6 +147,10 @@ namespace engine {
 	}
 
 	Image::~Image() {
+		if (imageView != VK_NULL_HANDLE) {
+			vkDestroyImageView(device, imageView, nullptr);
+			imageView = VK_NULL_HANDLE;
+		}
 		if (image != VK_NULL_HANDLE) {
 			vkDestroyImage(device, image, nullptr);
 			image = VK_NULL_HANDLE;
@@ -154,10 +158,6 @@ namespace engine {
 		if (memory != VK_NULL_HANDLE) {
 			vkFreeMemory(device, memory, nullptr);
 			memory = VK_NULL_HANDLE;
-		}
-		if (imageView != VK_NULL_HANDLE) {
-			vkDestroyImageView(device, imageView, nullptr);
-			imageView = VK_NULL_HANDLE;
 		}
 	}
 
@@ -168,6 +168,9 @@ namespace engine {
 				vkDestroyImageView(engine.device, pImage->imageView, nullptr);
 				vkDestroyImage(engine.device, pImage->image, nullptr);
 				vkFreeMemory(engine.device, pImage->memory, nullptr);
+				pImage->image = VK_NULL_HANDLE;
+				pImage->imageView = VK_NULL_HANDLE;
+				pImage->memory = VK_NULL_HANDLE;
 				});
 		}
 		return pImage;
@@ -366,6 +369,10 @@ namespace engine {
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
 				});
 		}
 		return pTexture;
@@ -391,6 +398,10 @@ namespace engine {
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
 				});
 		}
 		return pTexture;
@@ -418,15 +429,19 @@ namespace engine {
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
 				});
 		}
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath) {
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, VkFormat format) {
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
-		VkDeviceSize imageSize = texWidth * texHeight * 4;
+		VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * 4;
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
 		}
@@ -438,7 +453,7 @@ namespace engine {
 			TEMP_BIT);
 		pStagingBuffer->copyFromHost(pixels);
 
-		auto pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, BEFORE_SWAPCHAIN_BIT);
+		auto pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT);
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

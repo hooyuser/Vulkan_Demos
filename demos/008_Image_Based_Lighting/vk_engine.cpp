@@ -7,9 +7,6 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string VERTEX_SHADER_PATH = "assets/shaders/vert.spv";
-const std::string FRAGMENT_SHADER_PATH = "assets/shaders/frag.spv";
-
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 
@@ -54,7 +51,7 @@ struct SwapChainSupportDetails {
 };
 
 
-SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f),3.46f,glm::vec3(0.0f, 0.0f, -1.0f) };
+SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 3.46f, glm::vec3(0.0f, 0.0f, -1.0f) };
 
 
 Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
@@ -104,8 +101,10 @@ void VulkanEngine::initVulkan() {
 	createUniformBuffers();//recreateSwapChain
 	createDescriptorPool();//recreateSwapChain
 	createDescriptorSets();//recreateSwapChain
+	initScene();
 	createCommandBuffers();//recreateSwapChain
 	createSyncObjects();
+	
 
 	setCamera();
 
@@ -161,6 +160,7 @@ void VulkanEngine::recreateSwapChain() {
 	createUniformBuffers();
 	createDescriptorPool();
 	createDescriptorSets();
+	initScene();
 	createCommandBuffers();
 	setCamera();
 
@@ -274,7 +274,7 @@ void VulkanEngine::createLogicalDevice() {
 		queueCreateInfo.queueFamilyIndex = queueFamily;
 		queueCreateInfo.queueCount = 1;
 		queueCreateInfo.pQueuePriorities = &queuePriority;
-		queueCreateInfos.push_back(queueCreateInfo);
+		queueCreateInfos.emplace_back(queueCreateInfo);
 	}
 
 	VkPhysicalDeviceFeatures deviceFeatures{};
@@ -448,21 +448,12 @@ void VulkanEngine::createRenderPass() {
 }
 
 void VulkanEngine::createDescriptorSetLayout() {
-	VkDescriptorSetLayoutBinding uboLayoutBinding{};
-	uboLayoutBinding.binding = 0;
-	uboLayoutBinding.descriptorCount = 1;
-	uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	uboLayoutBinding.pImmutableSamplers = nullptr;
-	uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-	samplerLayoutBinding.binding = 1;
-	samplerLayoutBinding.descriptorCount = 1;
-	samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	samplerLayoutBinding.pImmutableSamplers = nullptr;
-	samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+	auto uboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	auto cubemapSamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1);
+	auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2);
 
-	std::array<VkDescriptorSetLayoutBinding, 2> bindings = { uboLayoutBinding, samplerLayoutBinding };
+	std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, cubemapSamplerLayoutBinding, texture2DsamplerLayoutBinding };
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
@@ -484,14 +475,14 @@ void VulkanEngine::createGraphicsPipeline() {
 	auto vertShaderCode = readFile("assets/shaders/env_cubemap.vert.spv");
 	auto fragShaderCode = readFile("assets/shaders/env_cubemap.frag.spv");
 
-	VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+	VkShaderModule vertShaderModule1 = createShaderModule(vertShaderCode);
+	VkShaderModule fragShaderModule1 = createShaderModule(fragShaderCode);
 
 	pipelineBuilder.shaderStages.clear();
-	pipelineBuilder.shaderStages.push_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule));
-	pipelineBuilder.shaderStages.push_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule));
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule1));
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule1));
 
 	auto bindingDescriptions = Vertex::getBindingDescriptions();
 	auto attributeDescriptions = Vertex::getAttributeDescriptions();
@@ -517,7 +508,7 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	pipelineBuilder.multisampling = vkinit::multisamplingStateCreateInfo(msaaSamples);
 
-	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachment = vkinit::colorBlendAttachmentState();
 
@@ -529,18 +520,48 @@ void VulkanEngine::createGraphicsPipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, graphicsPipeline);
+	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, envPipeline);
+
+	createMaterial(envPipeline, pipelineLayout, "env_cubemap");
 
 	swapChainDeletionQueue.push_function([=]() {
 		//destroy the 2 pipelines we have created
-		vkDestroyPipeline(device, graphicsPipeline, nullptr);
+		vkDestroyPipeline(device, envPipeline, nullptr);
+		});
+
+	vkDestroyShaderModule(device, fragShaderModule1, nullptr);
+	vkDestroyShaderModule(device, vertShaderModule1, nullptr);
+
+	/////////////////////////////////////////////////////////////////////
+
+	vertShaderCode = readFile("assets/shaders/flat.vert.spv");
+	fragShaderCode = readFile("assets/shaders/flat.frag.spv");
+
+	VkShaderModule vertShaderModule2 = createShaderModule(vertShaderCode);
+	VkShaderModule fragShaderModule2 = createShaderModule(fragShaderCode);
+
+	pipelineBuilder.shaderStages.clear();
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule2));
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule2));
+
+	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+
+	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, meshPipeline);
+
+	createMaterial(meshPipeline, pipelineLayout, "mesh");
+
+	swapChainDeletionQueue.push_function([=]() {
+		//destroy the 2 pipelines we have created
+		vkDestroyPipeline(device, meshPipeline, nullptr);
 
 		//destroy the pipeline layout that they use
 		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 		});
 
-	vkDestroyShaderModule(device, fragShaderModule, nullptr);
-	vkDestroyShaderModule(device, vertShaderModule, nullptr);
+	vkDestroyShaderModule(device, fragShaderModule2, nullptr);
+	vkDestroyShaderModule(device, vertShaderModule2, nullptr);
 }
 
 void VulkanEngine::createFramebuffers() {
@@ -584,15 +605,15 @@ void VulkanEngine::createAttachments() {
 	VkFormat depthFormat = findDepthFormat();
 
 	pColorImage = engine::Image::createImage(*this,
-		swapChainExtent.width, 
-		swapChainExtent.height, 
-		1, 
-		msaaSamples, 
-		colorFormat, 
-		VK_IMAGE_TILING_OPTIMAL, 
-		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT, 
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, 
-		VK_IMAGE_ASPECT_COLOR_BIT, 
+		swapChainExtent.width,
+		swapChainExtent.height,
+		1,
+		msaaSamples,
+		colorFormat,
+		VK_IMAGE_TILING_OPTIMAL,
+		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+		VK_IMAGE_ASPECT_COLOR_BIT,
 		AFTER_SWAPCHAIN_BIT);
 
 	pDepthImage = engine::Image::createImage(*this,
@@ -638,7 +659,7 @@ bool VulkanEngine::hasStencilComponent(VkFormat format) {
 }
 
 void VulkanEngine::createTextureImage() {
-	
+
 	const char* cubemapPath[6] = {
 		"assets/textures/output_pos_x.hdr",
 		"assets/textures/output_neg_x.hdr",
@@ -719,11 +740,13 @@ void VulkanEngine::createUniformBuffers() {
 }
 
 void VulkanEngine::createDescriptorPool() {
-	std::array<VkDescriptorPoolSize, 2> poolSizes{};
+	std::array<VkDescriptorPoolSize, 3> poolSizes{};
 	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 	poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 	poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+	poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	poolSizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
 
 	VkDescriptorPoolCreateInfo poolInfo{};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -759,12 +782,17 @@ void VulkanEngine::createDescriptorSets() {
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
-		VkDescriptorImageInfo imageInfo{};
-		imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		imageInfo.imageView = loadedTextures["env_cubemap"]->imageView;
-		imageInfo.sampler = loadedTextures["env_cubemap"]->sampler;
+		VkDescriptorImageInfo cubemapInfo{};
+		cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		cubemapInfo.imageView = loadedTextures["env_cubemap"]->imageView;
+		cubemapInfo.sampler = loadedTextures["env_cubemap"]->sampler;
 
-		std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+		VkDescriptorImageInfo textureInfo{};
+		textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		textureInfo.imageView = loadedTextures["viking_room"]->imageView;
+		textureInfo.sampler = loadedTextures["viking_room"]->sampler;
+
+		std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = descriptorSets[i];
@@ -780,7 +808,15 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &imageInfo;
+		descriptorWrites[1].pImageInfo = &cubemapInfo;
+
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = descriptorSets[i];
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[2].descriptorCount = 1;
+		descriptorWrites[2].pImageInfo = &textureInfo;
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}
@@ -863,17 +899,37 @@ void VulkanEngine::createCommandBuffers() {
 
 		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		vkCmdBindPipeline(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+		MeshPtr lastMesh = nullptr;
+		MaterialPtr lastMaterial = nullptr;
 
-		VkBuffer vertexBuffers[] = { meshes["skybox"]->pVertexBuffer->buffer};
-		VkDeviceSize offsets[] = { 0 };
-		vkCmdBindVertexBuffers(commandBuffers[i], 0, 1, vertexBuffers, offsets);
+		auto cmd = commandBuffers[i];
 
-		vkCmdBindIndexBuffer(commandBuffers[i], meshes["skybox"]->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+		for (int k = 0; k < renderables.size(); k++)
+		{
+			RenderObject& object = renderables[k];
 
-		vkCmdBindDescriptorSets(commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+			//only bind the pipeline if it doesnt match with the already bound one
+			if (object.material != lastMaterial) {
 
-		vkCmdDrawIndexed(commandBuffers[i], static_cast<uint32_t>(meshes["skybox"]->_indices.size()), 1, 0, 0, 0);
+				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
+				lastMaterial = object.material;
+
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+
+			}
+			//only bind the mesh if its a different one from last bind
+			if (object.mesh != lastMesh) {
+				//bind the mesh vertex buffer with offset 0
+				VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
+				VkDeviceSize offsets[] = { 0 };
+				vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+
+				vkCmdBindIndexBuffer(cmd, object.mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+				lastMesh = object.mesh;
+			}
+			//we can now draw
+			vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indices.size()), 1, 0, 0, 0);
+		}
 
 		vkCmdEndRenderPass(commandBuffers[i]);
 
@@ -910,6 +966,24 @@ void VulkanEngine::createSyncObjects() {
 	}
 }
 
+void VulkanEngine::initScene() {
+	renderables.clear();
+
+	RenderObject viking;
+	viking.mesh = meshes["viking_room"];
+	viking.material = materials["mesh"];
+	viking.transformMatrix = glm::mat4{ 1.0f };
+
+	renderables.emplace_back(viking);
+
+	RenderObject skybox;
+	skybox.mesh = meshes["skybox"];
+	skybox.material = materials["env_cubemap"];
+	skybox.transformMatrix = glm::mat4{ 1.0f };
+
+	renderables.emplace_back(skybox);
+}
+
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 	static auto startTime = std::chrono::high_resolution_clock::now();
 
@@ -918,7 +992,8 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 
 	UniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
+	ubo.view = camera.viewMatrix();
+	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
 	ubo.proj = camera.projMatrix();
 	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
@@ -1146,7 +1221,7 @@ std::vector<const char*> VulkanEngine::getRequiredExtensions() {
 	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
 
 	if (enableValidationLayers) {
-		extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+		extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 
 	return extensions;
