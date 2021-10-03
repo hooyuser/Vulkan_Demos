@@ -41,7 +41,7 @@ std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions(
 	VkVertexInputAttributeDescription texCoordAttributeDescription = {};
 	texCoordAttributeDescription.binding = 0;
 	texCoordAttributeDescription.location = 1;
-	texCoordAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	texCoordAttributeDescription.format = VK_FORMAT_R32G32_SFLOAT;
 	texCoordAttributeDescription.offset = offsetof(Vertex, texCoord);
 
 	attributeDescriptions.emplace_back(posAttributeDescription);

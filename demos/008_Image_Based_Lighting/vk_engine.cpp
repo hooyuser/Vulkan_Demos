@@ -51,7 +51,7 @@ struct SwapChainSupportDetails {
 };
 
 
-SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 3.46f, glm::vec3(0.0f, 0.0f, -1.0f) };
+SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 3.46f, glm::vec3(0.0f) };
 
 
 Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
