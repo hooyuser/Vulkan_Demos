@@ -1,0 +1,13 @@
+language: cpp
+sudo: required
+os: windows
+
+branches:
+  only:
+    - master
+
+script:
+    - mkdir build
+    - cd build
+    - cmake ..
+    - cmake --build . --config release
