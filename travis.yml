@@ -11,3 +11,11 @@ script:
     - cd build
     - cmake ..
     - cmake --build . --config release
+
+deploy:
+  provider: releases
+  api_key: "GITHUB OAUTH TOKEN"
+  file: "build/demos/008_Image_Based_Lighting/Release/008_Image_Based_Lighting.exe"
+  skip_cleanup: true
+  on:
+    tags: true
