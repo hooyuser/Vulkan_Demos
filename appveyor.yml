@@ -4,5 +4,5 @@ clone_folder: c:\projects\source
 
 build_script:
 - cmd: >-
-    cmake -S c:\projects\source -B ./build -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE:STRING=Release
+    cmake -S c:\projects\source -B ./build -G "Visual Studio 16 2019" -DCMAKE_BUILD_TYPE=Release
     cmake --build . --target ALL_BUILD --config Release
