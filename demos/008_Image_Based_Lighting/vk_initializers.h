@@ -2,6 +2,7 @@
 
 #include "vk_types.h"
 #include <vector>
+#include <span>
 
 namespace vkinit {
 	VkCommandPoolCreateInfo commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
@@ -28,7 +29,7 @@ namespace vkinit {
 
 	VkPipelineColorBlendStateCreateInfo colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment);
 
-	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(const VkDescriptorSetLayout& descriptorSetLayout);
+	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayout);
 
 	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::array<VkImageView, 3>& attachments);
 

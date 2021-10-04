@@ -21,12 +21,16 @@
 #include <deque>
 
 #include <set>
+#include <span>
 #include <unordered_map>
 
 
 struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
 
+struct FrameData {
+	VkDescriptorSet sceneDescriptorSet;
+};
 
 struct DeletionQueue
 {
@@ -101,8 +105,10 @@ public:
 	std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	VkRenderPass renderPass;
-	VkDescriptorSetLayout descriptorSetLayout;
-	VkPipelineLayout pipelineLayout;
+	VkDescriptorSetLayout sceneSetLayout;
+	VkDescriptorSetLayout texSetLayout;
+	VkPipelineLayout meshPipelineLayout;
+	VkPipelineLayout envPipelineLayout;
 	VkPipeline meshPipeline;
 	VkPipeline envPipeline;
 
@@ -120,7 +126,8 @@ public:
 	std::vector<BufferPtr> pUniformBuffers;
 
 	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> descriptorSets;
+
+	std::vector<FrameData> frameData;
 
 	std::vector<VkCommandBuffer> commandBuffers;
 
@@ -170,7 +177,7 @@ public:
 
 	void createRenderPass();
 
-	void createDescriptorSetLayout();
+	void createDescriptorSetLayouts();
 
 	void createGraphicsPipeline();
 
@@ -205,6 +212,8 @@ public:
 	void createDescriptorPool();
 
 	void createDescriptorSets();
+
+	void createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet);
 
 	VkCommandBuffer beginSingleTimeCommands();
 
@@ -256,13 +265,21 @@ public:
 
 	void setCamera();
 
-
 	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
 	{
 		auto pMat = std::make_shared<Material>(pipeline, layout);
 		materials[name] = pMat;
 		return materials[name];
 	}
+
+	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, VkDescriptorSet textureSet, const std::string& name)
+	{
+		auto pMat = std::make_shared<Material>(pipeline, layout, textureSet);
+		materials[name] = pMat;
+		return materials[name];
+	}
+
+	void createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
 };
 
 

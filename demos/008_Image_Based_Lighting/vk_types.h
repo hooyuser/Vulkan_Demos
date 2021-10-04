@@ -44,11 +44,12 @@ struct AllocatedImage {
 
 
 struct Material {
-    VkDescriptorSet textureSet{ VK_NULL_HANDLE };
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
-
+    VkDescriptorSet textureSet = VK_NULL_HANDLE;
     inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
+    }
+    inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout, VkDescriptorSet textureSet) :pipeline(pipeline), pipelineLayout(pipelineLayout), textureSet(textureSet){
     }
 };
 

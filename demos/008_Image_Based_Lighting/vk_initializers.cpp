@@ -2,6 +2,7 @@
 #include "vk_mesh.h"
 #include <array>
 
+
 VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/)
 {
 	VkCommandPoolCreateInfo commandPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
@@ -160,15 +161,15 @@ VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPip
 	return colorBlending;
 }
 
-VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(const VkDescriptorSetLayout& descriptorSetLayout) {
+VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayouts) {
 	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
 
 	pipelineLayoutInfo.pNext = nullptr;
 	//empty defaults
 	pipelineLayoutInfo.flags = 0;
 
-	pipelineLayoutInfo.setLayoutCount = 1;
-	pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
+	pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
+	pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
 
 	pipelineLayoutInfo.pushConstantRangeCount = 0;
 	pipelineLayoutInfo.pPushConstantRanges = nullptr;

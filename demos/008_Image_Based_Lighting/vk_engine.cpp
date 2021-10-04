@@ -1,6 +1,8 @@
 #include "vk_engine.h"
 #include "vk_initializers.h"
 
+#include <span>
+
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
@@ -91,8 +93,7 @@ void VulkanEngine::initVulkan() {
 	createSwapChain();//recreateSwapChain
 	createImageViews();//recreateSwapChain
 	createRenderPass();//recreateSwapChain
-	createDescriptorSetLayout();
-	createGraphicsPipeline();//recreateSwapChain
+	createDescriptorSetLayouts();
 	createCommandPool();
 	createAttachments();//recreateSwapChain
 	createFramebuffers();//recreateSwapChain
@@ -101,10 +102,11 @@ void VulkanEngine::initVulkan() {
 	createUniformBuffers();//recreateSwapChain
 	createDescriptorPool();//recreateSwapChain
 	createDescriptorSets();//recreateSwapChain
+	createGraphicsPipeline();//recreateSwapChain
 	initScene();
 	createCommandBuffers();//recreateSwapChain
 	createSyncObjects();
-	
+
 
 	setCamera();
 
@@ -154,12 +156,13 @@ void VulkanEngine::recreateSwapChain() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
-	createGraphicsPipeline();
+	
 	createAttachments();
 	createFramebuffers();
 	createUniformBuffers();
 	createDescriptorPool();
 	createDescriptorSets();
+	createGraphicsPipeline();
 	initScene();
 	createCommandBuffers();
 	setCamera();
@@ -290,6 +293,15 @@ void VulkanEngine::createLogicalDevice() {
 
 	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
 	createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+
+	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
+	descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
+	// Enable non-uniform indexing
+	descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
+	descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
+	descriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
+	descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
+	createInfo.pNext = &descriptorIndexingFeatures;
 
 	if (enableValidationLayers) {
 		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -447,17 +459,22 @@ void VulkanEngine::createRenderPass() {
 		});
 }
 
-void VulkanEngine::createDescriptorSetLayout() {
+void VulkanEngine::createDescriptorSetLayouts() {
 
-	auto uboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
-	auto cubemapSamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1);
-	auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2);
+	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	std::array<VkDescriptorSetLayoutBinding, 1> scenebindings = { camUboLayoutBinding };
+	createDescriptorSetLayout(scenebindings, sceneSetLayout);
+		
+	auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	std::array<VkDescriptorSetLayoutBinding, 1> meshbindings = { texture2DsamplerLayoutBinding };
+	createDescriptorSetLayout(meshbindings, texSetLayout);
+}
 
-	std::array<VkDescriptorSetLayoutBinding, 3> bindings = { uboLayoutBinding, cubemapSamplerLayoutBinding, texture2DsamplerLayoutBinding };
+void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding> && descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(bindings.size());
-	layoutInfo.pBindings = bindings.data();
+	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
+	layoutInfo.pBindings = descriptorSetLayoutBindings.data();
 
 	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
@@ -467,6 +484,7 @@ void VulkanEngine::createDescriptorSetLayout() {
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 		});
 }
+
 
 void VulkanEngine::createGraphicsPipeline() {
 
@@ -514,19 +532,23 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	pipelineBuilder.colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
 
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(descriptorSetLayout);
+	std::array<VkDescriptorSetLayout, 2> envDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
 
-	if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+	VkPipelineLayoutCreateInfo envPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(envDescriptorSetLayouts);
+
+	if (vkCreatePipelineLayout(device, &envPipelineLayoutInfo, nullptr, &envPipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, envPipeline);
+	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
 
-	createMaterial(envPipeline, pipelineLayout, "env_cubemap");
+	createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
+
+	createTexDescriptorSet(loadedTextures["env_cubemap"], materials["env_cubemap"]->textureSet);
 
 	swapChainDeletionQueue.push_function([=]() {
-		//destroy the 2 pipelines we have created
 		vkDestroyPipeline(device, envPipeline, nullptr);
+		vkDestroyPipelineLayout(device, envPipelineLayout, nullptr);
 		});
 
 	vkDestroyShaderModule(device, fragShaderModule1, nullptr);
@@ -548,20 +570,62 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-	pipelineBuilder.buildPipeline(device, renderPass, pipelineLayout, meshPipeline);
+	std::array<VkDescriptorSetLayout, 2> meshDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
 
-	createMaterial(meshPipeline, pipelineLayout, "mesh");
+	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
+
+	if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipeline);
+
+	createMaterial(meshPipeline, meshPipelineLayout, "mesh");
+
+	createTexDescriptorSet(loadedTextures["viking_room"], materials["mesh"]->textureSet);
 
 	swapChainDeletionQueue.push_function([=]() {
 		//destroy the 2 pipelines we have created
 		vkDestroyPipeline(device, meshPipeline, nullptr);
 
 		//destroy the pipeline layout that they use
-		vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 		});
+
 
 	vkDestroyShaderModule(device, fragShaderModule2, nullptr);
 	vkDestroyShaderModule(device, vertShaderModule2, nullptr);
+}
+
+void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
+
+
+	VkDescriptorSetAllocateInfo allocTexInfo{};
+	allocTexInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocTexInfo.descriptorPool = descriptorPool;
+	allocTexInfo.descriptorSetCount = 1;
+	allocTexInfo.pSetLayouts = &texSetLayout;
+
+	if (vkAllocateDescriptorSets(device, &allocTexInfo, &texDescriptorSet) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
+	}
+
+	VkDescriptorImageInfo textureInfo{};
+	textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	textureInfo.imageView = loadedTexture->imageView;
+	textureInfo.sampler = loadedTexture->sampler;
+
+	std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+
+	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	descriptorWrites[0].dstSet = texDescriptorSet;
+	descriptorWrites[0].dstBinding = 0;
+	descriptorWrites[0].dstArrayElement = 0;
+	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+	descriptorWrites[0].descriptorCount = 1;
+	descriptorWrites[0].pImageInfo = &textureInfo;
+
+	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 }
 
 void VulkanEngine::createFramebuffers() {
@@ -740,19 +804,18 @@ void VulkanEngine::createUniformBuffers() {
 }
 
 void VulkanEngine::createDescriptorPool() {
-	std::array<VkDescriptorPoolSize, 3> poolSizes{};
-	poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-	poolSizes[0].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
-	poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[1].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
-	poolSizes[2].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	poolSizes[2].descriptorCount = static_cast<uint32_t>(swapChainImages.size());
+	const uint32_t descriptorSize = swapChainImages.size() * 5;
+	std::vector<VkDescriptorPoolSize> poolSizes = {
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
+		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
+	};
 
-	VkDescriptorPoolCreateInfo poolInfo{};
+	VkDescriptorPoolCreateInfo poolInfo = {};
 	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+	poolInfo.flags = 0;
+	poolInfo.maxSets = descriptorSize;
 	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	poolInfo.pPoolSizes = poolSizes.data();
-	poolInfo.maxSets = static_cast<uint32_t>(swapChainImages.size());
 
 	if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor pool!");
@@ -764,62 +827,35 @@ void VulkanEngine::createDescriptorPool() {
 }
 
 void VulkanEngine::createDescriptorSets() {
-	std::vector<VkDescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
-	VkDescriptorSetAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocInfo.descriptorPool = descriptorPool;
-	allocInfo.descriptorSetCount = static_cast<uint32_t>(swapChainImages.size());
-	allocInfo.pSetLayouts = layouts.data();
-
-	descriptorSets.resize(swapChainImages.size());
-	if (vkAllocateDescriptorSets(device, &allocInfo, descriptorSets.data()) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
+	VkDescriptorSetAllocateInfo allocSceneInfo{};
+	allocSceneInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocSceneInfo.descriptorPool = descriptorPool;
+	allocSceneInfo.descriptorSetCount = 1;
+	allocSceneInfo.pSetLayouts = &sceneSetLayout;
+	frameData.resize(swapChainImages.size());
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
+		
+		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &frameData[i].sceneDescriptorSet) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate descriptor sets!");
+		}
 		VkDescriptorBufferInfo bufferInfo{};
 		bufferInfo.buffer = pUniformBuffers[i]->buffer;
 		bufferInfo.offset = 0;
 		bufferInfo.range = sizeof(UniformBufferObject);
 
-		VkDescriptorImageInfo cubemapInfo{};
-		cubemapInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		cubemapInfo.imageView = loadedTextures["env_cubemap"]->imageView;
-		cubemapInfo.sampler = loadedTextures["env_cubemap"]->sampler;
-
-		VkDescriptorImageInfo textureInfo{};
-		textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		textureInfo.imageView = loadedTextures["viking_room"]->imageView;
-		textureInfo.sampler = loadedTextures["viking_room"]->sampler;
-
-		std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
+		std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = descriptorSets[i];
+		descriptorWrites[0].dstSet = frameData[i].sceneDescriptorSet;
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
 		descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = descriptorSets[i];
-		descriptorWrites[1].dstBinding = 1;
-		descriptorWrites[1].dstArrayElement = 0;
-		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[1].descriptorCount = 1;
-		descriptorWrites[1].pImageInfo = &cubemapInfo;
-
-		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = descriptorSets[i];
-		descriptorWrites[2].dstBinding = 2;
-		descriptorWrites[2].dstArrayElement = 0;
-		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-		descriptorWrites[2].descriptorCount = 1;
-		descriptorWrites[2].pImageInfo = &textureInfo;
-
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-	}
+	}	
 }
 
 VkCommandBuffer VulkanEngine::beginSingleTimeCommands() {
@@ -908,13 +944,15 @@ void VulkanEngine::createCommandBuffers() {
 		{
 			RenderObject& object = renderables[k];
 
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &frameData[i].sceneDescriptorSet, 0, nullptr);
+
 			//only bind the pipeline if it doesnt match with the already bound one
 			if (object.material != lastMaterial) {
 
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 				lastMaterial = object.material;
 
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &object.material->textureSet, 0, nullptr);
 
 			}
 			//only bind the mesh if its a different one from last bind

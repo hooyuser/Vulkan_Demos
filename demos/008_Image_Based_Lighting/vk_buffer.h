@@ -29,7 +29,7 @@ namespace engine {
 	public:
 		static BufferPtr createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription);
 		void copyFromHost(void* hostData);
-		void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer);
+		void copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer);
 	};
 }
 

@@ -438,7 +438,7 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, VkFormat format) {
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * 4;
