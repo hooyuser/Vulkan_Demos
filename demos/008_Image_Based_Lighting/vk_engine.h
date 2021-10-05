@@ -6,6 +6,7 @@
 #include "vk_buffer.h"
 #include "vk_image.h"
 
+
 // #define GLFW_INCLUDE_VULKAN
 
 #include <iostream>
@@ -52,14 +53,21 @@ struct DeletionQueue
 
 class PipelineBuilder {
 public:
+	std::vector<VkVertexInputBindingDescription> bindingDescriptions;
+	std::vector < VkVertexInputAttributeDescription> attributeDescriptions;
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 	VkPipelineVertexInputStateCreateInfo vertexInput;
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly;
+	VkViewport viewport;
+	VkRect2D scissor;
 	VkPipelineViewportStateCreateInfo viewportState;
 	VkPipelineRasterizationStateCreateInfo rasterizer;
 	VkPipelineColorBlendStateCreateInfo colorBlend;
 	VkPipelineMultisampleStateCreateInfo multisampling;
 	VkPipelineDepthStencilStateCreateInfo depthStencil;
+	VkPipelineColorBlendAttachmentState colorBlendAttachment;
+
+	PipelineBuilder(VulkanEngine* engine);
 
 	void buildPipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 };
@@ -180,6 +188,10 @@ public:
 	void createDescriptorSetLayouts();
 
 	void createGraphicsPipeline();
+
+	void createMeshPipeline();
+
+	void createEnvLightPipeline();
 
 	void createFramebuffers();
 

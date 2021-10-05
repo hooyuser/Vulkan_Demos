@@ -9,6 +9,9 @@
 #include <glm/gtx/hash.hpp>
 
 #include <optional>
+#include <any>
+
+
 
 typedef enum CreateResourceFlagBits {
     TEMP_BIT = 0x00000000,
@@ -42,6 +45,12 @@ struct AllocatedImage {
     VkDeviceMemory _imageMemory;
 };
 
+struct pbrParameters {
+    VkBool32 useBaseColorTexture = false;
+    float baseColorRed = 1.0;
+    float baseColorGreen = 1.0;
+    float baseColorBlue = 1.0;
+};
 
 struct Material {
     VkPipeline pipeline;

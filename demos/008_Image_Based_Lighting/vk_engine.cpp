@@ -1,5 +1,6 @@
 #include "vk_engine.h"
 #include "vk_initializers.h"
+#include "vk_shader.h"
 
 #include <span>
 
@@ -53,10 +54,10 @@ struct SwapChainSupportDetails {
 };
 
 
-SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 3.46f, glm::vec3(0.0f) };
+SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 5.46f, glm::vec3(0.0f) };
 
 
-Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.1f, 10.0f);
+Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
 glm::vec2 VulkanEngine::mousePreviousPos = glm::vec2(0.0);
 glm::vec2 VulkanEngine::mouseDeltaPos = glm::vec2(0.0);
 
@@ -156,7 +157,6 @@ void VulkanEngine::recreateSwapChain() {
 	createSwapChain();
 	createImageViews();
 	createRenderPass();
-	
 	createAttachments();
 	createFramebuffers();
 	createUniformBuffers();
@@ -181,7 +181,7 @@ void VulkanEngine::createInstance() {
 	appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
 	appInfo.pEngineName = "No Engine";
 	appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-	appInfo.apiVersion = VK_API_VERSION_1_0;
+	appInfo.apiVersion = VK_API_VERSION_1_2;
 
 	VkInstanceCreateInfo createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -485,88 +485,19 @@ void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBind
 		});
 }
 
-
-void VulkanEngine::createGraphicsPipeline() {
-
-	PipelineBuilder pipelineBuilder;
-
-	auto vertShaderCode = readFile("assets/shaders/env_cubemap.vert.spv");
-	auto fragShaderCode = readFile("assets/shaders/env_cubemap.frag.spv");
-
-	VkShaderModule vertShaderModule1 = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule1 = createShaderModule(fragShaderCode);
+void VulkanEngine::createMeshPipeline() {
+	PipelineBuilder pipelineBuilder(this);
+	std::array<std::string, 2> spvFilePaths = {
+		"assets/shaders/flat.vert.spv",
+		"assets/shaders/flat.frag.spv"
+	};
+	auto pShader = engine::Shader::createFromSpv(this, spvFilePaths);
 
 	pipelineBuilder.shaderStages.clear();
 	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule1));
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0]));
 	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule1));
-
-	auto bindingDescriptions = Vertex::getBindingDescriptions();
-	auto attributeDescriptions = Vertex::getAttributeDescriptions();
-	pipelineBuilder.vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
-
-	pipelineBuilder.inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-	VkViewport viewport{};
-	viewport.x = 0.0f;
-	viewport.y = (float)swapChainExtent.height;
-	viewport.width = (float)swapChainExtent.width;
-	viewport.height = -(float)swapChainExtent.height;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	VkRect2D scissor{};
-	scissor.offset = { 0, 0 };
-	scissor.extent = swapChainExtent;
-
-	pipelineBuilder.viewportState = vkinit::viewportStateCreateInfo(viewport, scissor);
-
-	pipelineBuilder.rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
-
-	pipelineBuilder.multisampling = vkinit::multisamplingStateCreateInfo(msaaSamples);
-
-	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
-
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = vkinit::colorBlendAttachmentState();
-
-	pipelineBuilder.colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
-
-	std::array<VkDescriptorSetLayout, 2> envDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
-
-	VkPipelineLayoutCreateInfo envPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(envDescriptorSetLayouts);
-
-	if (vkCreatePipelineLayout(device, &envPipelineLayoutInfo, nullptr, &envPipelineLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create pipeline layout!");
-	}
-
-	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
-
-	createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
-
-	createTexDescriptorSet(loadedTextures["env_cubemap"], materials["env_cubemap"]->textureSet);
-
-	swapChainDeletionQueue.push_function([=]() {
-		vkDestroyPipeline(device, envPipeline, nullptr);
-		vkDestroyPipelineLayout(device, envPipelineLayout, nullptr);
-		});
-
-	vkDestroyShaderModule(device, fragShaderModule1, nullptr);
-	vkDestroyShaderModule(device, vertShaderModule1, nullptr);
-
-	/////////////////////////////////////////////////////////////////////
-
-	vertShaderCode = readFile("assets/shaders/flat.vert.spv");
-	fragShaderCode = readFile("assets/shaders/flat.frag.spv");
-
-	VkShaderModule vertShaderModule2 = createShaderModule(vertShaderCode);
-	VkShaderModule fragShaderModule2 = createShaderModule(fragShaderCode);
-
-	pipelineBuilder.shaderStages.clear();
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertShaderModule2));
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, fragShaderModule2));
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1]));
 
 	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
@@ -582,7 +513,7 @@ void VulkanEngine::createGraphicsPipeline() {
 
 	createMaterial(meshPipeline, meshPipelineLayout, "mesh");
 
-	createTexDescriptorSet(loadedTextures["viking_room"], materials["mesh"]->textureSet);
+	createTexDescriptorSet(loadedTextures["dragon"], materials["mesh"]->textureSet);
 
 	swapChainDeletionQueue.push_function([=]() {
 		//destroy the 2 pipelines we have created
@@ -591,10 +522,48 @@ void VulkanEngine::createGraphicsPipeline() {
 		//destroy the pipeline layout that they use
 		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 		});
+}
 
+void VulkanEngine::createEnvLightPipeline() {
+	PipelineBuilder pipelineBuilder(this);
+	std::array<std::string, 2> spvFilePaths = {
+		"assets/shaders/env_cubemap.vert.spv",
+		"assets/shaders/env_cubemap.frag.spv"
+	};
+	
+	auto pShader = engine::Shader::createFromSpv(this, spvFilePaths);
+	
+	pipelineBuilder.shaderStages.clear();
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0]));
+	pipelineBuilder.shaderStages.emplace_back(
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1]));
 
-	vkDestroyShaderModule(device, fragShaderModule2, nullptr);
-	vkDestroyShaderModule(device, vertShaderModule2, nullptr);
+	std::array<VkDescriptorSetLayout, 2> envDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
+
+	VkPipelineLayoutCreateInfo envPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(envDescriptorSetLayouts);
+
+	if (vkCreatePipelineLayout(device, &envPipelineLayoutInfo, nullptr, &envPipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
+
+	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
+
+	createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
+
+	createTexDescriptorSet(loadedTextures["env_cubemap"], materials["env_cubemap"]->textureSet);
+
+	swapChainDeletionQueue.push_function([=]() {
+		vkDestroyPipeline(device, envPipeline, nullptr);
+		vkDestroyPipelineLayout(device, envPipelineLayout, nullptr);
+		});
+}
+
+void VulkanEngine::createGraphicsPipeline() {
+	createMeshPipeline();
+	createEnvLightPipeline();	
 }
 
 void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
@@ -725,16 +694,17 @@ bool VulkanEngine::hasStencilComponent(VkFormat format) {
 void VulkanEngine::createTextureImage() {
 
 	const char* cubemapPath[6] = {
-		"assets/textures/output_pos_x.hdr",
-		"assets/textures/output_neg_x.hdr",
-		"assets/textures/output_pos_y.hdr",
-		"assets/textures/output_neg_y.hdr",
-		"assets/textures/output_pos_z.hdr",
-		"assets/textures/output_neg_z.hdr"
+		"assets/textures/HDRi/output_pos_x.hdr",
+		"assets/textures/HDRi/output_neg_x.hdr",
+		"assets/textures/HDRi/output_pos_y.hdr",
+		"assets/textures/HDRi/output_neg_y.hdr",
+		"assets/textures/HDRi/output_pos_z.hdr",
+		"assets/textures/HDRi/output_neg_z.hdr"
 	};
 
 	loadedTextures.emplace("env_cubemap", engine::Texture::loadCubemapTexture(this, cubemapPath));
-	loadedTextures.emplace("viking_room", engine::Texture::load2DTexture(this, "assets/textures/viking_room.png"));
+	//loadedTextures.emplace("viking_room", engine::Texture::load2DTexture(this, "assets/textures/viking_room.png"));
+	loadedTextures.emplace("dragon", engine::Texture::load2DTexture(this, "assets/textures/Dragon_baseColor.png")); 
 }
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
@@ -787,8 +757,9 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 }
 
 void VulkanEngine::loadModel() {
-	meshes.emplace("viking_room", Mesh::loadFromObj(this, "assets/models/viking_room.obj"));
-	meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj"));
+	//meshes.emplace("viking_room", Mesh::loadFromObj(this, "assets/models/viking_room.obj"));
+	meshes.emplace("dragon", Mesh::loadFromObj(this, "assets/models/dragon.obj"));
+	meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj")); 
 }
 
 void VulkanEngine::createUniformBuffers() {
@@ -1008,7 +979,7 @@ void VulkanEngine::initScene() {
 	renderables.clear();
 
 	RenderObject viking;
-	viking.mesh = meshes["viking_room"];
+	viking.mesh = meshes["dragon"];
 	viking.material = materials["mesh"];
 	viking.transformMatrix = glm::mat4{ 1.0f };
 
@@ -1308,9 +1279,14 @@ std::vector<char> VulkanEngine::readFile(const std::string& filename) {
 	return buffer;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
-	std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
-
+VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debugCallback(
+	VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+	VkDebugUtilsMessageTypeFlagsEXT messageType,
+	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+	void* pUserData) {
+	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+	}
 	return VK_FALSE;
 }
 
@@ -1345,6 +1321,34 @@ void VulkanEngine::setCamera() {
 	camera.aspectRatio = swapChainExtent.width / (float)swapChainExtent.height;
 }
 
+PipelineBuilder::PipelineBuilder(VulkanEngine* engine) {
+	bindingDescriptions = Vertex::getBindingDescriptions();
+	attributeDescriptions = Vertex::getAttributeDescriptions();
+	vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+	inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+
+	viewport.x = 0.0f;
+	viewport.y = (float)engine->swapChainExtent.height;
+	viewport.width = (float)engine->swapChainExtent.width;
+	viewport.height = -(float)engine->swapChainExtent.height;
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	scissor.offset = { 0, 0 };
+	scissor.extent = engine->swapChainExtent;
+
+	viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
+
+	rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+
+	multisampling = vkinit::multisamplingStateCreateInfo(engine->msaaSamples);
+
+	depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+
+	colorBlendAttachment = vkinit::colorBlendAttachmentState();
+
+	colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
+}
 
 void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
 	VkGraphicsPipelineCreateInfo pipelineInfo{};

@@ -42,6 +42,7 @@ target_include_directories(${PROJECT_NAME}
         ${extern_dir}/stb
         ${extern_dir}/tinyobjloader
         ${extern_dir}/tinyexr
+        ${extern_dir}/nlohmann
 )
 
 target_link_libraries(${PROJECT_NAME}

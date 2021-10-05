@@ -17,7 +17,7 @@ namespace vkinit {
 
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo(VkPrimitiveTopology topology);
 
-	VkPipelineViewportStateCreateInfo viewportStateCreateInfo(const VkViewport& viewport, const VkRect2D& scissor);
+	VkPipelineViewportStateCreateInfo viewportStateCreateInfo(const VkViewport* viewport, const VkRect2D* scissor);
 
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo(VkPolygonMode polygonMode);
 

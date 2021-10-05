@@ -80,13 +80,13 @@ VkPipelineInputAssemblyStateCreateInfo vkinit::inputAssemblyCreateInfo(VkPrimiti
 	return inputAssemblyInfo;
 }
 
-VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewport& viewport, const VkRect2D& scissor) {
+VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewport* viewport, const VkRect2D* scissor) {
 	VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 
 	viewportState.viewportCount = 1;
-	viewportState.pViewports = &viewport;
+	viewportState.pViewports = viewport;
 	viewportState.scissorCount = 1;
-	viewportState.pScissors = &scissor;
+	viewportState.pScissors = scissor;
 	return viewportState;
 }
 
@@ -101,7 +101,7 @@ VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPo
 
 	rasterizerInfo.polygonMode = polygonMode;
 	rasterizerInfo.lineWidth = 1.0f;
-	rasterizerInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+	rasterizerInfo.cullMode = VK_CULL_MODE_NONE;
 	rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	//no depth bias
 	rasterizerInfo.depthBiasEnable = VK_FALSE;
