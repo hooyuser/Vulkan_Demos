@@ -3,9 +3,13 @@
 #include "vk_shader.h"
 
 #include <span>
+#include <filesystem>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+#include <json.hpp>
+using json = nlohmann::json;
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -486,42 +490,90 @@ void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBind
 }
 
 void VulkanEngine::createMeshPipeline() {
-	PipelineBuilder pipelineBuilder(this);
-	std::array<std::string, 2> spvFilePaths = {
-		"assets/shaders/flat.vert.spv",
-		"assets/shaders/flat.frag.spv"
-	};
-	auto pShader = engine::Shader::createFromSpv(this, spvFilePaths);
+	auto materialInfoJson = R"(
+	{
+		"dragon": {
+			"shaders": ["assets/shaders/flat.vert.spv", "assets/shaders/flat.frag.spv"],
+			"paras": {
+				"baseColor": [0.5, 0.1, 0.7]
+			},
+			"textures": {
+				"baseColor": "assets/textures/Dragon_baseColor.png"
+			}
+		}
+	}
+	)"_json;
 
-	pipelineBuilder.shaderStages.clear();
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0]));
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1]));
-
-	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
-
-	std::array<VkDescriptorSetLayout, 2> meshDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
-
-	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
-
-	if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create pipeline layout!");
+	for (auto& [name, matInfo] : materialInfoJson.items()) {
+		materials.emplace(name, std::make_shared<engine::Material>());
+		auto material = materials[name];
+		materials[name]->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
+		if (matInfo.contains("paras")) {
+			auto paras = matInfo["paras"];
+			if (paras.contains("baseColor")) {
+				material->paras.baseColorRed = paras["baseColor"][0].get<float>();
+				material->paras.baseColorGreen = paras["baseColor"][1].get<float>();
+				material->paras.baseColorBlue = paras["baseColor"][2].get<float>();
+			}
+		}
+		if (matInfo.contains("textures")) {
+			auto textures = matInfo["textures"];
+			if (textures.contains("baseColor")) {
+				material->paras.useBaseColorTexture = true;
+				material->textureSetFlagBits |= BASE_COLOR;
+				auto filepath = textures["baseColor"].get<std::string>();
+				auto filename = std::filesystem::path(filepath).stem().string();
+				if (loadedTextures.contains(filename)) {
+					throw std::runtime_error("Texture names conflict!");
+				}
+				loadedTextures.emplace(filename, engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
+				engine::TextureSet textureSet(filename);
+				createTexDescriptorSet(loadedTextures[filename], textureSet.descriptorSet);
+				material->textureSets.emplace("baseColor", textureSet);
+				//material->textureSets["baseColor"].textureName = filename;
+				
+			}
+		}
+		meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
 	}
 
-	pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipeline);
+	PipelineBuilder pipelineBuilder(this);
 
-	createMaterial(meshPipeline, meshPipelineLayout, "mesh");
+	auto tempMeshPipelines = meshPipelines;
 
-	createTexDescriptorSet(loadedTextures["dragon"], materials["mesh"]->textureSet);
+	for (auto& [matName, material]: materials) {
+		auto flagBit = material->textureSetFlagBits;
+		if (tempMeshPipelines.contains(flagBit)) {
+			pipelineBuilder.shaderStages.clear();
+			for (auto shaderModule : material->pShaders->shaderModules) {
+				pipelineBuilder.shaderStages.emplace_back(
+					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader));
+			}
 
-	swapChainDeletionQueue.push_function([=]() {
-		//destroy the 2 pipelines we have created
-		vkDestroyPipeline(device, meshPipeline, nullptr);
+			pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		//destroy the pipeline layout that they use
-		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
-		});
+			std::array<VkDescriptorSetLayout, 2> meshDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
+
+			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
+
+			if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create pipeline layout!");
+			}
+
+			pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipelines[flagBit]);
+
+			swapChainDeletionQueue.push_function([=]() {
+				//destroy the 2 pipelines we have created
+				vkDestroyPipeline(device, meshPipelines[flagBit], nullptr);
+
+				//destroy the pipeline layout that they use
+				vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
+				});
+			material->pipelineLayout = meshPipelineLayout;
+			material->pipeline = meshPipelines[flagBit];
+			tempMeshPipelines.erase(material->textureSetFlagBits);
+		}
+	}
 }
 
 void VulkanEngine::createEnvLightPipeline() {
@@ -535,9 +587,9 @@ void VulkanEngine::createEnvLightPipeline() {
 	
 	pipelineBuilder.shaderStages.clear();
 	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0]));
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0].shader));
 	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1]));
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1].shader));
 
 	std::array<VkDescriptorSetLayout, 2> envDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
 
@@ -553,7 +605,11 @@ void VulkanEngine::createEnvLightPipeline() {
 
 	createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
 
-	createTexDescriptorSet(loadedTextures["env_cubemap"], materials["env_cubemap"]->textureSet);
+	engine::TextureSet textureSet("env_cubemap");
+	
+
+	createTexDescriptorSet(loadedTextures["env_cubemap"], textureSet.descriptorSet);
+	materials["env_cubemap"]->textureSets.emplace("env_cubemap", textureSet);
 
 	swapChainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(device, envPipeline, nullptr);
@@ -567,8 +623,6 @@ void VulkanEngine::createGraphicsPipeline() {
 }
 
 void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
-
-
 	VkDescriptorSetAllocateInfo allocTexInfo{};
 	allocTexInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocTexInfo.descriptorPool = descriptorPool;
@@ -704,7 +758,7 @@ void VulkanEngine::createTextureImage() {
 
 	loadedTextures.emplace("env_cubemap", engine::Texture::loadCubemapTexture(this, cubemapPath));
 	//loadedTextures.emplace("viking_room", engine::Texture::load2DTexture(this, "assets/textures/viking_room.png"));
-	loadedTextures.emplace("dragon", engine::Texture::load2DTexture(this, "assets/textures/Dragon_baseColor.png")); 
+	//loadedTextures.emplace("dragon", engine::Texture::load2DTexture(this, "assets/textures/Dragon_baseColor.png")); 
 }
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
@@ -923,8 +977,11 @@ void VulkanEngine::createCommandBuffers() {
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 				lastMaterial = object.material;
 
-				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &object.material->textureSet, 0, nullptr);
-
+				if (!(object.material->textureSets.empty())) {
+					for (auto [name, textureSet] : object.material->textureSets) {
+						vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &textureSet.descriptorSet, 0, nullptr);
+					}			
+				}
 			}
 			//only bind the mesh if its a different one from last bind
 			if (object.mesh != lastMesh) {
@@ -980,7 +1037,7 @@ void VulkanEngine::initScene() {
 
 	RenderObject viking;
 	viking.mesh = meshes["dragon"];
-	viking.material = materials["mesh"];
+	viking.material = materials["dragon"];
 	viking.transformMatrix = glm::mat4{ 1.0f };
 
 	renderables.emplace_back(viking);
@@ -1077,20 +1134,6 @@ void VulkanEngine::drawFrame() {
 	}
 
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
-}
-
-VkShaderModule VulkanEngine::createShaderModule(const std::vector<char>& code) {
-	VkShaderModuleCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.codeSize = code.size();
-	createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
-
-	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create shader module!");
-	}
-
-	return shaderModule;
 }
 
 VkSurfaceFormatKHR VulkanEngine::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -1259,24 +1302,6 @@ bool VulkanEngine::checkValidationLayerSupport() {
 	}
 
 	return true;
-}
-
-std::vector<char> VulkanEngine::readFile(const std::string& filename) {
-	std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open()) {
-		throw std::runtime_error("failed to open file!");
-	}
-
-	size_t fileSize = (size_t)file.tellg();
-	std::vector<char> buffer(fileSize);
-
-	file.seekg(0);
-	file.read(buffer.data(), fileSize);
-
-	file.close();
-
-	return buffer;
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debugCallback(

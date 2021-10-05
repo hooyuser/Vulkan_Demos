@@ -1,16 +1,15 @@
 #include "vk_shader.h"
 
-
 #include <fstream>
 
-//template <class R, class T>
-//concept Matrix =
-//std::convertible_to<
-//	std::ranges::range_reference_t<std::ranges::range_reference_t<R>>,
-//	T>;
 
 namespace engine {
 	using ShaderPtr = std::shared_ptr<Shader>;
+
+	ShaderModule::ShaderModule(){}
+	ShaderModule::ShaderModule(VkShaderStageFlagBits stage, VkShaderModule shader) :stage(stage), shader(shader) {}
+	ShaderModule::ShaderModule(const ShaderModule& shaderModule): stage(shaderModule.stage), shader(shaderModule.shader) {}
+	ShaderModule::ShaderModule(ShaderModule&& shaderModule) : stage(shaderModule.stage), shader(shaderModule.shader) {}
 
 	std::vector<char> readFile(const std::string& filename) {
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -30,12 +29,11 @@ namespace engine {
 		return buffer;
 	}
 
-	Shader::Shader(VkDevice device, std::vector<VkShaderModule>&& shaderModules): device(device), shaderModules(shaderModules){
-	}
+	Shader::Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules): device(device), shaderModules(shaderModules){}
 
 	Shader::~Shader() {
 		for (auto& it : shaderModules) {
-			vkDestroyShaderModule(device, it, nullptr);
+			vkDestroyShaderModule(device, it.shader, nullptr);
 		}
 	}
 }

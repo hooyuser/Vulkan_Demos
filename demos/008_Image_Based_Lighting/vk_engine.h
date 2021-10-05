@@ -5,6 +5,7 @@
 #include "vk_camera.h"
 #include "vk_buffer.h"
 #include "vk_image.h"
+#include "vk_material.h"
 
 
 // #define GLFW_INCLUDE_VULKAN
@@ -117,7 +118,7 @@ public:
 	VkDescriptorSetLayout texSetLayout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
-	VkPipeline meshPipeline;
+	std::unordered_map<TextureSetFlagBits, VkPipeline> meshPipelines;
 	VkPipeline envPipeline;
 
 	VkCommandPool commandPool;
@@ -245,8 +246,6 @@ public:
 
 	void drawFrame();
 
-	VkShaderModule createShaderModule(const std::vector<char>& code);
-
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
@@ -265,8 +264,6 @@ public:
 
 	bool checkValidationLayerSupport();
 
-	static std::vector<char> readFile(const std::string& filename);
-
 	static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData);
 
 	static void mouseCursorCallback(GLFWwindow* window, double xpos, double ypos);
@@ -279,14 +276,7 @@ public:
 
 	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
 	{
-		auto pMat = std::make_shared<Material>(pipeline, layout);
-		materials[name] = pMat;
-		return materials[name];
-	}
-
-	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, VkDescriptorSet textureSet, const std::string& name)
-	{
-		auto pMat = std::make_shared<Material>(pipeline, layout, textureSet);
+		auto pMat = std::make_shared<engine::Material>(pipeline, layout);
 		materials[name] = pMat;
 		return materials[name];
 	}

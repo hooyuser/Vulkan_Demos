@@ -11,13 +11,20 @@
 #include <optional>
 #include <any>
 
-
+#include "util.h"
 
 typedef enum CreateResourceFlagBits {
     TEMP_BIT = 0x00000000,
     BEFORE_SWAPCHAIN_BIT = 0x00000001,
     AFTER_SWAPCHAIN_BIT = 0x00000003,
 } CreateResourceFlagBits;
+
+typedef enum TextureSetFlagBits {
+    None = 0x00000000,
+    BASE_COLOR = 0x00000001,
+} TextureSetFlagBits;
+MAKE_ENUM_FLAGS(TextureSetFlagBits)
+
 
 
 struct QueueFamilyIndices {
@@ -44,24 +51,5 @@ struct AllocatedImage {
     VkImage _image;
     VkDeviceMemory _imageMemory;
 };
-
-struct pbrParameters {
-    VkBool32 useBaseColorTexture = false;
-    float baseColorRed = 1.0;
-    float baseColorGreen = 1.0;
-    float baseColorBlue = 1.0;
-};
-
-struct Material {
-    VkPipeline pipeline;
-    VkPipelineLayout pipelineLayout;
-    VkDescriptorSet textureSet = VK_NULL_HANDLE;
-    inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
-    }
-    inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout, VkDescriptorSet textureSet) :pipeline(pipeline), pipelineLayout(pipelineLayout), textureSet(textureSet){
-    }
-};
-
-using MaterialPtr = std::shared_ptr<Material>;
 
 

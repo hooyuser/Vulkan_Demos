@@ -2,6 +2,7 @@
 #include "vk_types.h"
 #include "vk_engine.h"
 #include <iostream>
+#include <filesystem>
 #include <string>
 
 
@@ -15,18 +16,28 @@ std::convertible_to<
 namespace engine {
 	std::vector<char> readFile(const std::string& filename);
 
+	struct ShaderModule {
+		VkShaderStageFlagBits stage;
+		VkShaderModule shader = VK_NULL_HANDLE;
+		ShaderModule();
+		ShaderModule(VkShaderStageFlagBits stage, VkShaderModule shader);
+		ShaderModule(const ShaderModule& shaderModule);
+		ShaderModule(ShaderModule&& shaderModule);
+	};
+
 	class Shader {
 		using ShaderPtr = std::shared_ptr<Shader>;
 	public:
+		
 		VkDevice device = VK_NULL_HANDLE;
-		std::vector<VkShaderModule> shaderModules;
+		std::vector<ShaderModule> shaderModules;
 
-		Shader(VkDevice device, std::vector<VkShaderModule>&& shaderModules);
+		Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules);
 
 		~Shader();
 
 		static ShaderPtr createFromSpv(VulkanEngine* engine, Matrix<char> auto const& spvFilePaths) {
-			std::vector<VkShaderModule> shaderModuleVector;
+			std::vector<ShaderModule> shaderModuleVector;
 			for (auto const& spvFilePath : spvFilePaths) {
 				auto spvCode = readFile(spvFilePath);
 				VkShaderModuleCreateInfo createInfo{};
@@ -34,8 +45,19 @@ namespace engine {
 				createInfo.codeSize = spvCode.size();
 				createInfo.pCode = reinterpret_cast<const uint32_t*>(spvCode.data());
 
-				VkShaderModule shaderModule;
-				if (vkCreateShaderModule(engine->device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+				ShaderModule shaderModule;
+				auto extention = std::filesystem::path(spvFilePath).stem().extension().string();
+				if (extention == ".vert") {
+					shaderModule.stage = VK_SHADER_STAGE_VERTEX_BIT;
+				}
+				else if (extention == ".frag") {
+					shaderModule.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
+				}
+				else {
+					throw std::runtime_error("Illegal shader name! Please specify the stage!");
+				}
+				
+				if (vkCreateShaderModule(engine->device, &createInfo, nullptr, &shaderModule.shader) != VK_SUCCESS) {
 					throw std::runtime_error("failed to create shader module!");
 				}
 
@@ -43,7 +65,7 @@ namespace engine {
 			}
 			return std::make_shared<Shader>(engine->device, std::move(shaderModuleVector));
 		}
-	};
+	};	
 }
 
 using ShaderPtr = std::shared_ptr<engine::Shader>;
