@@ -493,7 +493,7 @@ void VulkanEngine::createMeshPipeline() {
 	auto materialInfoJson = R"(
 	{
 		"dragon": {
-			"shaders": ["assets/shaders/flat.vert.spv", "assets/shaders/flat.frag.spv"],
+			"shaders": ["assets/shaders/pbr.vert.spv", "assets/shaders/pbr.frag.spv"],
 			"paras": {
 				"baseColor": [0.5, 0.1, 0.7]
 			},
@@ -505,10 +505,13 @@ void VulkanEngine::createMeshPipeline() {
 	)"_json;
 
 	for (auto& [name, matInfo] : materialInfoJson.items()) {
+
 		materials.emplace(name, std::make_shared<engine::Material>());
 		auto material = materials[name];
 		materials[name]->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
+
 		if (matInfo.contains("paras")) {
+
 			auto paras = matInfo["paras"];
 			if (paras.contains("baseColor")) {
 				material->paras.baseColorRed = paras["baseColor"][0].get<float>();
@@ -517,8 +520,11 @@ void VulkanEngine::createMeshPipeline() {
 			}
 		}
 		if (matInfo.contains("textures")) {
+
 			auto textures = matInfo["textures"];
+
 			if (textures.contains("baseColor")) {
+
 				material->paras.useBaseColorTexture = true;
 				material->textureSetFlagBits |= BASE_COLOR;
 				auto filepath = textures["baseColor"].get<std::string>();
@@ -529,9 +535,7 @@ void VulkanEngine::createMeshPipeline() {
 				loadedTextures.emplace(filename, engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
 				engine::TextureSet textureSet(filename);
 				createTexDescriptorSet(loadedTextures[filename], textureSet.descriptorSet);
-				material->textureSets.emplace("baseColor", textureSet);
-				//material->textureSets["baseColor"].textureName = filename;
-				
+				material->textureSets.emplace("baseColor", textureSet);			
 			}
 		}
 		meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
@@ -542,13 +546,17 @@ void VulkanEngine::createMeshPipeline() {
 	auto tempMeshPipelines = meshPipelines;
 
 	for (auto& [matName, material]: materials) {
+
 		auto flagBit = material->textureSetFlagBits;
+
 		if (tempMeshPipelines.contains(flagBit)) {
-			pipelineBuilder.shaderStages.clear();
+
+		/*	pipelineBuilder.shaderStages.clear();
 			for (auto shaderModule : material->pShaders->shaderModules) {
 				pipelineBuilder.shaderStages.emplace_back(
-					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader));
-			}
+					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader, material->paras));
+			}*/
+			pipelineBuilder.setShaderStages(material);
 
 			pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
@@ -1397,4 +1405,46 @@ void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& 
 	}
 }
 
+void PipelineBuilder::setShaderStages(MaterialPtr pMaterial) {
+	shaderStages.clear();
+	for (auto shaderModule : pMaterial->pShaders->shaderModules) {
+		if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
+			constexpr auto paraNum = PbrParameters::Class::TotalFields;
+			specializationMapEntries.resize(paraNum);
+			for (auto [i, offset] = std::tuple{ (size_t)0, (uint32_t)0 }; i < paraNum; i++) {
+				PbrParameters::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
+					specializationMapEntries[i].constantID = i;
+					specializationMapEntries[i].offset = offset;
+					specializationMapEntries[i].size = sizeof(value);
+					offset += sizeof(value);
+					});
+			}
+						
+			specializationInfo.mapEntryCount = paraNum;
+			specializationInfo.pMapEntries = specializationMapEntries.data();
+			specializationInfo.dataSize = sizeof(PbrParameters);
+			specializationInfo.pData = &pMaterial->paras;
+
+			VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+
+			info.pNext = nullptr;
+			info.stage = shaderModule.stage;
+			info.module = shaderModule.shader;
+			info.pName = "main";
+			info.pSpecializationInfo = &specializationInfo;
+
+			shaderStages.emplace_back(std::move(info));
+		}
+		else {
+			VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+
+			info.pNext = nullptr;
+			info.stage = shaderModule.stage;
+			info.module = shaderModule.shader;
+			info.pName = "main";
+
+			shaderStages.emplace_back(std::move(info));
+		}
+	}
+}
 

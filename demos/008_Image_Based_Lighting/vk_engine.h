@@ -55,7 +55,7 @@ struct DeletionQueue
 class PipelineBuilder {
 public:
 	std::vector<VkVertexInputBindingDescription> bindingDescriptions;
-	std::vector < VkVertexInputAttributeDescription> attributeDescriptions;
+	std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
 	std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 	VkPipelineVertexInputStateCreateInfo vertexInput;
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly;
@@ -67,8 +67,12 @@ public:
 	VkPipelineMultisampleStateCreateInfo multisampling;
 	VkPipelineDepthStencilStateCreateInfo depthStencil;
 	VkPipelineColorBlendAttachmentState colorBlendAttachment;
+	std::vector<VkSpecializationMapEntry> specializationMapEntries;
+	VkSpecializationInfo specializationInfo;
 
 	PipelineBuilder(VulkanEngine* engine);
+
+	void setShaderStages(MaterialPtr pMaterial);
 
 	void buildPipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 };

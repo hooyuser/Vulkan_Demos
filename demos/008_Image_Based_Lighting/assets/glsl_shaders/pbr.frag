@@ -2,7 +2,7 @@
 
 layout (constant_id = 0) const bool useBaseColorTexture = false;
 layout (constant_id = 1) const float baseColorRed = 1.0;
-layout (constant_id = 2) const float baseColorGreen = 1.0;
+layout (constant_id = 2) const float baseColorGreen = 0.0;
 layout (constant_id = 3) const float baseColorBlue = 1.0;
 
 layout(set = 1, binding = 0) uniform sampler2D baseColorTexture;

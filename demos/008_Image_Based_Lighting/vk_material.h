@@ -1,13 +1,17 @@
 #pragma once
 #include "vk_types.h"
-
+#include "Reflect.h"
 #include <string>
+
+using namespace Reflect;
 
 struct PbrParameters {
 	VkBool32 useBaseColorTexture = false;
 	float baseColorRed = 1.0;
 	float baseColorGreen = 1.0;
 	float baseColorBlue = 1.0;
+
+	REFLECT(PbrParameters, useBaseColorTexture, baseColorRed, baseColorGreen, baseColorBlue)
 };
 
 namespace engine {

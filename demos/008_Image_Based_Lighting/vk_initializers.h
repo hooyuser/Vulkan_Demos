@@ -4,6 +4,8 @@
 #include <vector>
 #include <span>
 
+class PbrParameters;
+
 namespace vkinit {
 	VkCommandPoolCreateInfo commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
 
