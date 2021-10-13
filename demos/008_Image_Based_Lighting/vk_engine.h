@@ -133,8 +133,10 @@ public:
 	std::vector<RenderObject> renderables;
 
 	std::unordered_map<std::string, MaterialPtr> materials;
+	//MaterialPtr envMaterial;
 	std::unordered_map<std::string, MeshPtr> meshes;
-	std::unordered_map<std::string, TexturePtr> loadedTextures;
+	std::vector<TexturePtr> loadedTexture2Ds;
+	std::vector<TexturePtr> loadedTextureCubemaps;
 
 	std::vector<BufferPtr> pUniformBuffers;
 
@@ -187,6 +189,8 @@ public:
 	void createSwapChain();
 
 	void createImageViews();
+
+	void parseMaterialInfo();
 
 	void createRenderPass();
 

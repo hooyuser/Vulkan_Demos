@@ -98,11 +98,12 @@ void VulkanEngine::initVulkan() {
 	createSwapChain();//recreateSwapChain
 	createImageViews();//recreateSwapChain
 	createRenderPass();//recreateSwapChain
-	createDescriptorSetLayouts();
 	createCommandPool();
+	parseMaterialInfo();
+	createDescriptorSetLayouts();
 	createAttachments();//recreateSwapChain
 	createFramebuffers();//recreateSwapChain
-	createTextureImage();
+	//createTextureImage();
 	loadModel();
 	createUniformBuffers();//recreateSwapChain
 	createDescriptorPool();//recreateSwapChain
@@ -463,34 +464,9 @@ void VulkanEngine::createRenderPass() {
 		});
 }
 
-void VulkanEngine::createDescriptorSetLayouts() {
 
-	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
-	std::array<VkDescriptorSetLayoutBinding, 1> scenebindings = { camUboLayoutBinding };
-	createDescriptorSetLayout(scenebindings, sceneSetLayout);
-		
-	auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	std::array<VkDescriptorSetLayoutBinding, 1> meshbindings = { texture2DsamplerLayoutBinding };
-	createDescriptorSetLayout(meshbindings, texSetLayout);
-}
-
-void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding> && descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
-	layoutInfo.pBindings = descriptorSetLayoutBindings.data();
-
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create descriptor set layout!");
-	}
-
-	mainDeletionQueue.push_function([=]() {
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-		});
-}
-
-void VulkanEngine::createMeshPipeline() {
-	auto materialInfoJson = R"(
+void VulkanEngine::parseMaterialInfo(){
+	auto objectMaterialInfoJson = R"(
 	{
 		"dragon": {
 			"shaders": ["assets/shaders/pbr.vert.spv", "assets/shaders/pbr.frag.spv"],
@@ -504,10 +480,10 @@ void VulkanEngine::createMeshPipeline() {
 	}
 	)"_json;
 
-	for (auto& [name, matInfo] : materialInfoJson.items()) {
+	for (auto& [name, matInfo] : objectMaterialInfoJson.items()) {
 
 		materials.emplace(name, std::make_shared<engine::Material>());
-		auto material = materials[name];
+		auto& material = materials[name];
 		materials[name]->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
 
 		if (matInfo.contains("paras")) {
@@ -527,20 +503,87 @@ void VulkanEngine::createMeshPipeline() {
 
 				material->paras.useBaseColorTexture = true;
 				material->textureSetFlagBits |= BASE_COLOR;
-				auto filepath = textures["baseColor"].get<std::string>();
-				auto filename = std::filesystem::path(filepath).stem().string();
-				if (loadedTextures.contains(filename)) {
-					throw std::runtime_error("Texture names conflict!");
-				}
-				loadedTextures.emplace(filename, engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
-				engine::TextureSet textureSet(filename);
-				createTexDescriptorSet(loadedTextures[filename], textureSet.descriptorSet);
-				material->textureSets.emplace("baseColor", textureSet);			
+				//engine::TextureSet textureSet(loadedTextures.size());
+				material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size());
+				material->paras.baseColorTextureID = loadedTexture2Ds.size();
+				loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
+				//createTexDescriptorSet(loadedTextures.back(), textureSet.descriptorSet);
+				
 			}
 		}
 		meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
 	}
 
+	auto envMaterialInfoJson = R"(
+	{
+		"type": "cubemap",
+		"filePath": [
+			"assets/textures/HDRi/output_pos_x.hdr",
+			"assets/textures/HDRi/output_neg_x.hdr",
+			"assets/textures/HDRi/output_pos_y.hdr",
+			"assets/textures/HDRi/output_neg_y.hdr",
+			"assets/textures/HDRi/output_pos_z.hdr",
+			"assets/textures/HDRi/output_neg_z.hdr"
+		]
+	}
+	)"_json;
+
+	if (envMaterialInfoJson["type"].get<std::string>() == "cubemap") {
+		const char* cubemapPath[6] = {
+			"assets/textures/HDRi/output_pos_x.hdr",
+			"assets/textures/HDRi/output_neg_x.hdr",
+			"assets/textures/HDRi/output_pos_y.hdr",
+			"assets/textures/HDRi/output_neg_y.hdr",
+			"assets/textures/HDRi/output_pos_z.hdr",
+			"assets/textures/HDRi/output_neg_z.hdr"
+		};
+		materials.emplace("env_light", std::make_shared<engine::Material>());
+		materials["env_light"]->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
+		materials["env_light"]->paras.baseColorTextureID = loadedTextureCubemaps.size();
+		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, cubemapPath));
+	}	
+
+	for (auto& [name, mat] : materials) {
+		mat->paras.texture2DArraySize = loadedTexture2Ds.size();
+	}
+
+	for (auto& [name, mat] : materials) {
+		mat->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+	}
+}
+
+void VulkanEngine::createDescriptorSetLayouts() {
+
+	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	auto texture2DArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
+	auto cubemapArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
+	
+	std::array<VkDescriptorSetLayoutBinding, 3> scenebindings = { camUboLayoutBinding, texture2DArrayLayoutBinding, cubemapArrayLayoutBinding };
+	createDescriptorSetLayout(scenebindings, sceneSetLayout);
+
+		
+	//auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	//std::array<VkDescriptorSetLayoutBinding, 1> meshbindings = { texture2DsamplerLayoutBinding };
+	//createDescriptorSetLayout(meshbindings, texSetLayout);
+}
+
+void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding> && descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
+	VkDescriptorSetLayoutCreateInfo layoutInfo{};
+	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
+	layoutInfo.pBindings = descriptorSetLayoutBindings.data();
+
+	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor set layout!");
+	}
+
+	mainDeletionQueue.push_function([=]() {
+		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+		});
+}
+
+void VulkanEngine::createMeshPipeline() {
+	
 	PipelineBuilder pipelineBuilder(this);
 
 	auto tempMeshPipelines = meshPipelines;
@@ -560,7 +603,7 @@ void VulkanEngine::createMeshPipeline() {
 
 			pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-			std::array<VkDescriptorSetLayout, 2> meshDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
+			std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
 
 			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
 
@@ -599,7 +642,7 @@ void VulkanEngine::createEnvLightPipeline() {
 	pipelineBuilder.shaderStages.emplace_back(
 		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1].shader));
 
-	std::array<VkDescriptorSetLayout, 2> envDescriptorSetLayouts = { sceneSetLayout , texSetLayout };
+	std::array<VkDescriptorSetLayout, 1> envDescriptorSetLayouts = { sceneSetLayout };
 
 	VkPipelineLayoutCreateInfo envPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(envDescriptorSetLayouts);
 
@@ -611,13 +654,16 @@ void VulkanEngine::createEnvLightPipeline() {
 
 	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
 
-	createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
+	//createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
 
-	engine::TextureSet textureSet("env_cubemap");
+	//engine::TextureSet textureSet("env_cubemap");
 	
 
-	createTexDescriptorSet(loadedTextures["env_cubemap"], textureSet.descriptorSet);
-	materials["env_cubemap"]->textureSets.emplace("env_cubemap", textureSet);
+	//createTexDescriptorSet(loadedTextures["env_cubemap"], textureSet.descriptorSet);
+	//materials["env_cubemap"]->textureSets.emplace("env_cubemap", textureSet);
+
+	materials["env_light"]->pipelineLayout = envPipelineLayout;
+	materials["env_light"]->pipeline = envPipeline;
 
 	swapChainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(device, envPipeline, nullptr);
@@ -630,34 +676,34 @@ void VulkanEngine::createGraphicsPipeline() {
 	createEnvLightPipeline();	
 }
 
-void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
-	VkDescriptorSetAllocateInfo allocTexInfo{};
-	allocTexInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocTexInfo.descriptorPool = descriptorPool;
-	allocTexInfo.descriptorSetCount = 1;
-	allocTexInfo.pSetLayouts = &texSetLayout;
-
-	if (vkAllocateDescriptorSets(device, &allocTexInfo, &texDescriptorSet) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	VkDescriptorImageInfo textureInfo{};
-	textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-	textureInfo.imageView = loadedTexture->imageView;
-	textureInfo.sampler = loadedTexture->sampler;
-
-	std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
-
-	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	descriptorWrites[0].dstSet = texDescriptorSet;
-	descriptorWrites[0].dstBinding = 0;
-	descriptorWrites[0].dstArrayElement = 0;
-	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-	descriptorWrites[0].descriptorCount = 1;
-	descriptorWrites[0].pImageInfo = &textureInfo;
-
-	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-}
+//void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
+//	VkDescriptorSetAllocateInfo allocTexInfo{};
+//	allocTexInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+//	allocTexInfo.descriptorPool = descriptorPool;
+//	allocTexInfo.descriptorSetCount = 1;
+//	allocTexInfo.pSetLayouts = &texSetLayout;
+//
+//	if (vkAllocateDescriptorSets(device, &allocTexInfo, &texDescriptorSet) != VK_SUCCESS) {
+//		throw std::runtime_error("failed to allocate descriptor sets!");
+//	}
+//
+//	VkDescriptorImageInfo textureInfo{};
+//	textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+//	textureInfo.imageView = loadedTexture->imageView;
+//	textureInfo.sampler = loadedTexture->sampler;
+//
+//	std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+//
+//	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+//	descriptorWrites[0].dstSet = texDescriptorSet;
+//	descriptorWrites[0].dstBinding = 0;
+//	descriptorWrites[0].dstArrayElement = 0;
+//	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+//	descriptorWrites[0].descriptorCount = 1;
+//	descriptorWrites[0].pImageInfo = &textureInfo;
+//
+//	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
+//}
 
 void VulkanEngine::createFramebuffers() {
 	swapChainFramebuffers.resize(swapChainImageViews.size());
@@ -753,21 +799,7 @@ bool VulkanEngine::hasStencilComponent(VkFormat format) {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
-void VulkanEngine::createTextureImage() {
 
-	const char* cubemapPath[6] = {
-		"assets/textures/HDRi/output_pos_x.hdr",
-		"assets/textures/HDRi/output_neg_x.hdr",
-		"assets/textures/HDRi/output_pos_y.hdr",
-		"assets/textures/HDRi/output_neg_y.hdr",
-		"assets/textures/HDRi/output_pos_z.hdr",
-		"assets/textures/HDRi/output_neg_z.hdr"
-	};
-
-	loadedTextures.emplace("env_cubemap", engine::Texture::loadCubemapTexture(this, cubemapPath));
-	//loadedTextures.emplace("viking_room", engine::Texture::load2DTexture(this, "assets/textures/viking_room.png"));
-	//loadedTextures.emplace("dragon", engine::Texture::load2DTexture(this, "assets/textures/Dragon_baseColor.png")); 
-}
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -837,7 +869,7 @@ void VulkanEngine::createUniformBuffers() {
 }
 
 void VulkanEngine::createDescriptorPool() {
-	const uint32_t descriptorSize = swapChainImages.size() * 5;
+	const uint32_t descriptorSize = swapChainImages.size() * 20;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
@@ -872,12 +904,26 @@ void VulkanEngine::createDescriptorSets() {
 		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &frameData[i].sceneDescriptorSet) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
-		VkDescriptorBufferInfo bufferInfo{};
-		bufferInfo.buffer = pUniformBuffers[i]->buffer;
-		bufferInfo.offset = 0;
-		bufferInfo.range = sizeof(UniformBufferObject);
+		VkDescriptorBufferInfo uniformBufferInfo{};
+		uniformBufferInfo.buffer = pUniformBuffers[i]->buffer;
+		uniformBufferInfo.offset = 0;
+		uniformBufferInfo.range = sizeof(UniformBufferObject);
 
-		std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+		std::vector<VkDescriptorImageInfo> textureDescriptors(loadedTexture2Ds.size());
+		for (size_t i = 0; i < loadedTexture2Ds.size(); i++) {
+			textureDescriptors[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			textureDescriptors[i].sampler = loadedTexture2Ds[i]->sampler;;
+			textureDescriptors[i].imageView = loadedTexture2Ds[i]->imageView;
+		}
+
+		std::vector<VkDescriptorImageInfo> cubemapDescriptors(loadedTextureCubemaps.size());
+		for (size_t i = 0; i < loadedTextureCubemaps.size(); i++) {
+			cubemapDescriptors[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			cubemapDescriptors[i].sampler = loadedTextureCubemaps[i]->sampler;;
+			cubemapDescriptors[i].imageView = loadedTextureCubemaps[i]->imageView;
+		}
+
+		std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
 		descriptorWrites[0].dstSet = frameData[i].sceneDescriptorSet;
@@ -885,7 +931,23 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 		descriptorWrites[0].descriptorCount = 1;
-		descriptorWrites[0].pBufferInfo = &bufferInfo;
+		descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
+
+		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[1].dstSet = frameData[i].sceneDescriptorSet;
+		descriptorWrites[1].dstBinding = 1;
+		descriptorWrites[1].dstArrayElement = 0;
+		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[1].descriptorCount = static_cast<uint32_t>(textureDescriptors.size());
+		descriptorWrites[1].pImageInfo = textureDescriptors.data();
+
+		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+		descriptorWrites[2].dstSet = frameData[i].sceneDescriptorSet;
+		descriptorWrites[2].dstBinding = 2;
+		descriptorWrites[2].dstArrayElement = 0;
+		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+		descriptorWrites[2].descriptorCount = static_cast<uint32_t>(cubemapDescriptors.size());
+		descriptorWrites[2].pImageInfo = cubemapDescriptors.data();
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
 	}	
@@ -985,11 +1047,11 @@ void VulkanEngine::createCommandBuffers() {
 				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
 				lastMaterial = object.material;
 
-				if (!(object.material->textureSets.empty())) {
-					for (auto [name, textureSet] : object.material->textureSets) {
-						vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &textureSet.descriptorSet, 0, nullptr);
-					}			
-				}
+				//if (!(object.material->textureArrayIndex.empty())) {
+					//for (auto [name, index] : object.material->textureArrayIndex) {
+						//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &loadedTextures[index]->descriptorSet, 0, nullptr);
+					//}			
+				//}
 			}
 			//only bind the mesh if its a different one from last bind
 			if (object.mesh != lastMesh) {
@@ -1052,7 +1114,7 @@ void VulkanEngine::initScene() {
 
 	RenderObject skybox;
 	skybox.mesh = meshes["skybox"];
-	skybox.material = materials["env_cubemap"];
+	skybox.material = materials["env_light"];
 	skybox.transformMatrix = glm::mat4{ 1.0f };
 
 	renderables.emplace_back(skybox);
