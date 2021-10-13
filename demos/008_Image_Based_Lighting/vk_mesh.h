@@ -7,6 +7,7 @@
 
 struct Vertex {
     glm::vec3 pos;
+    glm::vec3 normal;
     glm::vec2 texCoord;
 
     static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
@@ -14,7 +15,7 @@ struct Vertex {
     static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
 
     bool operator==(const Vertex& other) const {
-        return pos == other.pos && texCoord == other.texCoord;
+        return pos == other.pos && normal == other.normal && texCoord == other.texCoord;
     }
 };
 

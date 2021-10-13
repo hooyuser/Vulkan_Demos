@@ -37,14 +37,20 @@ std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions(
 	posAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
 	posAttributeDescription.offset = offsetof(Vertex, pos);
 
+	VkVertexInputAttributeDescription normalAttributeDescription = {};
+	normalAttributeDescription.binding = 0;
+	normalAttributeDescription.location = 1;
+	normalAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
+	normalAttributeDescription.offset = offsetof(Vertex, normal);
 
 	VkVertexInputAttributeDescription texCoordAttributeDescription = {};
 	texCoordAttributeDescription.binding = 0;
-	texCoordAttributeDescription.location = 1;
+	texCoordAttributeDescription.location = 2;
 	texCoordAttributeDescription.format = VK_FORMAT_R32G32_SFLOAT;
 	texCoordAttributeDescription.offset = offsetof(Vertex, texCoord);
 
 	attributeDescriptions.emplace_back(posAttributeDescription);
+	attributeDescriptions.emplace_back(normalAttributeDescription);
 	attributeDescriptions.emplace_back(texCoordAttributeDescription);
 
 	return attributeDescriptions;
@@ -71,6 +77,12 @@ MeshPtr Mesh::createFromObj(const char* filename) {
 				attrib.vertices[3 * index.vertex_index + 0],
 				attrib.vertices[3 * index.vertex_index + 1],
 				attrib.vertices[3 * index.vertex_index + 2]
+			};
+
+			vertex.normal = {
+				attrib.normals[3 * index.normal_index + 0],
+				attrib.normals[3 * index.normal_index + 1],
+				attrib.normals[3 * index.normal_index + 2]
 			};
 
 			vertex.texCoord = {
