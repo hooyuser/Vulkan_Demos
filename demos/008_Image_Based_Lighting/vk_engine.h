@@ -161,7 +161,6 @@ public:
 	static glm::vec2 mousePreviousPos;
 	static glm::vec2 mouseDeltaPos;
 
-
 	void initWindow();
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);

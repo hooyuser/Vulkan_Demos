@@ -529,18 +529,10 @@ void VulkanEngine::parseMaterialInfo(){
 	)"_json;
 
 	if (envMaterialInfoJson["type"].get<std::string>() == "cubemap") {
-		const char* cubemapPath[6] = {
-			"assets/textures/HDRi/output_pos_x.hdr",
-			"assets/textures/HDRi/output_neg_x.hdr",
-			"assets/textures/HDRi/output_pos_y.hdr",
-			"assets/textures/HDRi/output_neg_y.hdr",
-			"assets/textures/HDRi/output_pos_z.hdr",
-			"assets/textures/HDRi/output_neg_z.hdr"
-		};
 		materials.emplace("env_light", std::make_shared<engine::Material>());
 		materials["env_light"]->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
 		materials["env_light"]->paras.baseColorTextureID = loadedTextureCubemaps.size();
-		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, cubemapPath));
+		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePath"].get<std::vector<std::string>>()));
 	}	
 
 	for (auto& [name, mat] : materials) {

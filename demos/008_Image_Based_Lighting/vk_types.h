@@ -13,6 +13,12 @@
 
 #include "util.h"
 
+template <class R, class T>
+concept Matrix =
+std::convertible_to<
+    std::ranges::range_reference_t<std::ranges::range_reference_t<R>>,
+    T>;
+
 typedef enum CreateResourceFlagBits {
     TEMP_BIT = 0x00000000,
     BEFORE_SWAPCHAIN_BIT = 0x00000001,

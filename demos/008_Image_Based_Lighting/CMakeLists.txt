@@ -41,6 +41,7 @@ target_include_directories(${PROJECT_NAME}
         ${extern_dir}/glfw/include
         ${extern_dir}/stb
         ${extern_dir}/tinyobjloader
+        ${extern_dir}/tinygltf
         ${extern_dir}/tinyexr
         ${extern_dir}/nlohmann
         ${extern_dir}/RareCpp

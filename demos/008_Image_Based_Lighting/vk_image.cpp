@@ -467,11 +467,11 @@ namespace engine {
 
 	}
 
-	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const char** filePaths) {
+	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
 		int texWidth, texHeight, texChannels;
 		float* pixels[6];
 		for (int i = 0; i < 6; i++) {
-			pixels[i] = stbi_loadf(filePaths[i], &texWidth, &texHeight, &texChannels, 4);
+			pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
 			if (!pixels[i]) {
 				throw std::runtime_error("failed to load texture image!");
 			}

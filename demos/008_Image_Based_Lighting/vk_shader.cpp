@@ -11,6 +11,7 @@ namespace engine {
 	ShaderModule::ShaderModule(const ShaderModule& shaderModule): stage(shaderModule.stage), shader(shaderModule.shader) {}
 	ShaderModule::ShaderModule(ShaderModule&& shaderModule) : stage(shaderModule.stage), shader(shaderModule.shader) {}
 
+
 	std::vector<char> readFile(const std::string& filename) {
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
 
@@ -32,8 +33,11 @@ namespace engine {
 	Shader::Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules): device(device), shaderModules(shaderModules){}
 
 	Shader::~Shader() {
-		for (auto& it : shaderModules) {
-			vkDestroyShaderModule(device, it.shader, nullptr);
-		}
+		//for (auto& it : shaderModules) {
+		//	if (it.shader) {
+		//		vkDestroyShaderModule(device, it.shader, nullptr);
+		//		it.shader = VK_NULL_HANDLE;
+		//	}
+		//}
 	}
 }

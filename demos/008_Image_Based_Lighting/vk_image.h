@@ -71,7 +71,7 @@ namespace engine {
 
 		static TexturePtr load2DTexture(VulkanEngine* engine, const char* filePath, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
-		static TexturePtr loadCubemapTexture(VulkanEngine* engine, const char** filePaths);
+		static TexturePtr loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths);
 	};
 }
 

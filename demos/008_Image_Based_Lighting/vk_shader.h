@@ -6,11 +6,7 @@
 #include <string>
 
 
-template <class R, class T>
-concept Matrix =
-std::convertible_to<
-	std::ranges::range_reference_t<std::ranges::range_reference_t<R>>,
-	T>;
+
 
 
 namespace engine {
@@ -62,6 +58,10 @@ namespace engine {
 				}
 
 				shaderModuleVector.emplace_back(std::move(shaderModule));
+
+				engine->mainDeletionQueue.push_function([=]() {
+					vkDestroyShaderModule(engine->device, shaderModule.shader, nullptr);
+					});
 			}
 			return std::make_shared<Shader>(engine->device, std::move(shaderModuleVector));
 		}
