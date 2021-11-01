@@ -8,6 +8,8 @@ build/*
 *.hdr
 *.exr
 *.png
+*.bin
+*.gltf
 
 # User-specific files
 *.rsuser

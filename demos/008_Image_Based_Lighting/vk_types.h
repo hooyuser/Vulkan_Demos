@@ -25,13 +25,17 @@ typedef enum CreateResourceFlagBits {
     AFTER_SWAPCHAIN_BIT = 0x00000003,
 } CreateResourceFlagBits;
 
-typedef enum TextureSetFlagBits {
+typedef enum TextureSetFlagBits {  //deprecated
     None = 0x00000000,
     BASE_COLOR = 0x00000001,
 } TextureSetFlagBits;
 MAKE_ENUM_FLAGS(TextureSetFlagBits)
 
-
+typedef enum ShaderFlagBits {
+    FLAT = 0x00000000,
+    PBR = 0x00000001,
+} ShaderFlagBits;
+MAKE_ENUM_FLAGS(ShaderFlagBits)
 
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;

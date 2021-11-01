@@ -1,7 +1,6 @@
 #pragma once
 
 #include "vk_types.h"
-#include "vk_mesh.h"
 #include "vk_camera.h"
 #include "vk_buffer.h"
 #include "vk_image.h"
@@ -52,6 +51,11 @@ struct DeletionQueue
 	}
 };
 
+namespace engine {
+	class Mesh;
+}
+using MeshPtr = std::shared_ptr<engine::Mesh>;
+
 class PipelineBuilder {
 public:
 	std::vector<VkVertexInputBindingDescription> bindingDescriptions;
@@ -78,9 +82,11 @@ public:
 };
 
 
+
+
 struct RenderObject {
 	MeshPtr mesh;
-	MaterialPtr material;
+	//MaterialPtr material;
 	glm::mat4 transformMatrix;
 };
 
@@ -122,7 +128,7 @@ public:
 	VkDescriptorSetLayout texSetLayout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
-	std::unordered_map<TextureSetFlagBits, VkPipeline> meshPipelines;
+	std::unordered_map<ShaderFlagBits, VkPipeline> meshPipelines;
 	VkPipeline envPipeline;
 
 	VkCommandPool commandPool;
@@ -133,8 +139,10 @@ public:
 	std::vector<RenderObject> renderables;
 
 	std::unordered_map<std::string, MaterialPtr> materials;
+	std::vector<MaterialPtr> loadedMaterials;
 	//MaterialPtr envMaterial;
-	std::unordered_map<std::string, MeshPtr> meshes;
+	//std::unordered_map<std::string, MeshPtr> meshes;
+	std::vector<MeshPtr> loadedMeshes;
 	std::vector<TexturePtr> loadedTexture2Ds;
 	std::vector<TexturePtr> loadedTextureCubemaps;
 

@@ -31,11 +31,11 @@ namespace engine {
 	//};
 
 	using ShaderPtr = std::shared_ptr<Shader>;
-	struct Material {
-		
+	class Material {
+	public:
 		ShaderPtr pShaders;
 		PbrParameters paras;
-		TextureSetFlagBits textureSetFlagBits = None;
+		ShaderFlagBits shaderFlagBits = PBR;
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 		std::unordered_map<std::string, int> textureArrayIndex;

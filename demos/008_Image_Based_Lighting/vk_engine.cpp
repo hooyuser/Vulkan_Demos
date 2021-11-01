@@ -1,12 +1,19 @@
 #include "vk_engine.h"
 #include "vk_initializers.h"
 #include "vk_shader.h"
+#include "vk_mesh.h"
 
 #include <span>
 #include <filesystem>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
+
+#define TINYGLTF_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE_WRITE
+#include <tiny_gltf.h>
+
+#include <glm/gtc/type_ptr.hpp>
 
 #include <json.hpp>
 using json = nlohmann::json;
@@ -104,12 +111,12 @@ void VulkanEngine::initVulkan() {
 	createAttachments();//recreateSwapChain
 	createFramebuffers();//recreateSwapChain
 	//createTextureImage();
-	loadModel();
+	//loadModel();
 	createUniformBuffers();//recreateSwapChain
 	createDescriptorPool();//recreateSwapChain
 	createDescriptorSets();//recreateSwapChain
 	createGraphicsPipeline();//recreateSwapChain
-	initScene();
+	//initScene();
 	createCommandBuffers();//recreateSwapChain
 	createSyncObjects();
 
@@ -466,6 +473,76 @@ void VulkanEngine::createRenderPass() {
 
 
 void VulkanEngine::parseMaterialInfo(){
+	const std::string filename = "assets/gltf_models/dragon.gltf";
+	tinygltf::Model glTFModel;
+	tinygltf::TinyGLTF gltfContext;
+	std::string error, warning;
+
+	bool fileLoaded = gltfContext.LoadASCIIFromFile(&glTFModel, &error, &warning, filename);
+
+	if (fileLoaded) {
+		
+		for (size_t i = 0; i < glTFModel.images.size(); i++) {
+			tinygltf::Image& glTFImage = glTFModel.images[i];
+			loadedTexture2Ds.emplace_back(engine::Texture::load2DTextureFromHost(this, glTFImage.image.data(), glTFImage.width, glTFImage.height, glTFImage.component));
+		}
+
+		std::array<std::string, 2> shaderFilePaths{ 
+			"assets/shaders/pbr.vert.spv", 
+			"assets/shaders/pbr.frag.spv" 
+		};
+
+		auto pbrShader = engine::Shader::createFromSpv(this, std::move(shaderFilePaths));
+
+		for (auto& glTFMaterial : glTFModel.materials) {
+			auto material = std::make_shared<engine::Material>();
+			material->shaderFlagBits = PBR;
+			material->pShaders = pbrShader;
+
+			material->paras.baseColorRed = glTFMaterial.pbrMetallicRoughness.baseColorFactor[0];
+			material->paras.baseColorGreen = glTFMaterial.pbrMetallicRoughness.baseColorFactor[1];
+			material->paras.baseColorBlue = glTFMaterial.pbrMetallicRoughness.baseColorFactor[2];
+
+			auto baseColorTextureID = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
+			if (baseColorTextureID >= 0) {
+				material->paras.useBaseColorTexture = true;
+				//material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size()); deprecate
+				material->paras.baseColorTextureID = baseColorTextureID;
+			}
+			loadedMaterials.emplace_back(material);
+			meshPipelines.try_emplace(material->shaderFlagBits, VK_NULL_HANDLE);
+			materials.try_emplace(glTFMaterial.name, std::move(material));
+		}
+
+		for (auto& glTFMesh : glTFModel.meshes) {
+			loadedMeshes.emplace_back(engine::Mesh::loadFromGLTF(this, glTFModel, glTFMesh));
+		}
+
+		// Only support one scene
+		for (auto node_index : glTFModel.scenes[0].nodes) {
+			const tinygltf::Node& node = glTFModel.nodes[node_index];
+
+			if (node.mesh > -1) {
+				RenderObject renderobject;
+				renderobject.mesh = loadedMeshes[node.mesh];
+				if (node.translation.size() == 3) {
+					renderobject.transformMatrix = glm::translate(renderobject.transformMatrix, glm::vec3(glm::make_vec3(node.translation.data())));
+				}
+				if (node.rotation.size() == 4) {
+					glm::quat q = glm::make_quat(node.rotation.data());
+					renderobject.transformMatrix *= glm::mat4(q);
+				}
+				if (node.scale.size() == 3) {
+					renderobject.transformMatrix = glm::scale(renderobject.transformMatrix, glm::vec3(glm::make_vec3(node.scale.data())));
+				}
+				if (node.matrix.size() == 16) {
+					renderobject.transformMatrix = glm::make_mat4x4(node.matrix.data());
+				};
+				renderables.emplace_back(std::move(renderobject));
+			}
+		}
+	}
+
 	auto objectMaterialInfoJson = R"(
 	{
 		"dragon": {
@@ -480,39 +557,38 @@ void VulkanEngine::parseMaterialInfo(){
 	}
 	)"_json;
 
-	for (auto& [name, matInfo] : objectMaterialInfoJson.items()) {
+	//for (auto& [name, matInfo] : objectMaterialInfoJson.items()) {
 
-		materials.emplace(name, std::make_shared<engine::Material>());
-		auto& material = materials[name];
-		materials[name]->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
+	//	auto material = std::make_shared<engine::Material>();
+	//	material->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
 
-		if (matInfo.contains("paras")) {
+	//	if (matInfo.contains("paras")) {
 
-			auto paras = matInfo["paras"];
-			if (paras.contains("baseColor")) {
-				material->paras.baseColorRed = paras["baseColor"][0].get<float>();
-				material->paras.baseColorGreen = paras["baseColor"][1].get<float>();
-				material->paras.baseColorBlue = paras["baseColor"][2].get<float>();
-			}
-		}
-		if (matInfo.contains("textures")) {
+	//		auto paras = matInfo["paras"];
+	//		if (paras.contains("baseColor")) {
+	//			material->paras.baseColorRed = paras["baseColor"][0].get<float>();
+	//			material->paras.baseColorGreen = paras["baseColor"][1].get<float>();
+	//			material->paras.baseColorBlue = paras["baseColor"][2].get<float>();
+	//		}
+	//	}
+	//	if (matInfo.contains("textures")) {
 
-			auto textures = matInfo["textures"];
+	//		auto textures = matInfo["textures"];
 
-			if (textures.contains("baseColor")) {
+	//		if (textures.contains("baseColor")) {
 
-				material->paras.useBaseColorTexture = true;
-				material->textureSetFlagBits |= BASE_COLOR;
-				//engine::TextureSet textureSet(loadedTextures.size());
-				material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size());
-				material->paras.baseColorTextureID = loadedTexture2Ds.size();
-				loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
-				//createTexDescriptorSet(loadedTextures.back(), textureSet.descriptorSet);
-				
-			}
-		}
-		meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
-	}
+	//			material->paras.useBaseColorTexture = true;
+	//			material->textureSetFlagBits |= BASE_COLOR;  //deprecated
+	//			//engine::TextureSet textureSet(loadedTextures.size());
+	//			material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size());
+	//			material->paras.baseColorTextureID = loadedTexture2Ds.size();
+	//			loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
+	//			//createTexDescriptorSet(loadedTextures.back(), textureSet.descriptorSet);
+	//		}
+	//	}
+	//	meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
+	//	materials.emplace(name, std::move(material));
+	//}
 
 	auto envMaterialInfoJson = R"(
 	{
@@ -578,45 +654,47 @@ void VulkanEngine::createMeshPipeline() {
 	
 	PipelineBuilder pipelineBuilder(this);
 
-	auto tempMeshPipelines = meshPipelines;
+	//auto tempMeshPipelines = meshPipelines;
 
-	for (auto& [matName, material]: materials) {
+	for (auto& material: loadedMaterials) {
 
-		auto flagBit = material->textureSetFlagBits;
+		auto flagBit = material->shaderFlagBits;
 
-		if (tempMeshPipelines.contains(flagBit)) {
+		/*if (tempMeshPipelines.contains(flagBit)) {
 
-		/*	pipelineBuilder.shaderStages.clear();
+			pipelineBuilder.shaderStages.clear();
 			for (auto shaderModule : material->pShaders->shaderModules) {
 				pipelineBuilder.shaderStages.emplace_back(
 					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader, material->paras));
 			}*/
-			pipelineBuilder.setShaderStages(material);
+		pipelineBuilder.setShaderStages(material);
 
-			pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-			std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
+		std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
 
-			VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
+		VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
 
-			if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create pipeline layout!");
-			}
-
-			pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipelines[flagBit]);
-
-			swapChainDeletionQueue.push_function([=]() {
-				//destroy the 2 pipelines we have created
-				vkDestroyPipeline(device, meshPipelines[flagBit], nullptr);
-
-				//destroy the pipeline layout that they use
-				vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
-				});
-			material->pipelineLayout = meshPipelineLayout;
-			material->pipeline = meshPipelines[flagBit];
-			tempMeshPipelines.erase(material->textureSetFlagBits);
+		if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create pipeline layout!");
 		}
+
+		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipelines[flagBit]);
+
+		swapChainDeletionQueue.push_function([=]() {
+			vkDestroyPipeline(device, meshPipelines[flagBit], nullptr);
+			});		
+
+		//tempMeshPipelines.erase(material->shaderFlagBits);
+		//}
+		material->pipelineLayout = meshPipelineLayout;
+		material->pipeline = meshPipelines[flagBit];
 	}
+
+	swapChainDeletionQueue.push_function([=]() {
+		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
+		});
+
 }
 
 void VulkanEngine::createEnvLightPipeline() {
@@ -626,7 +704,7 @@ void VulkanEngine::createEnvLightPipeline() {
 		"assets/shaders/env_cubemap.frag.spv"
 	};
 	
-	auto pShader = engine::Shader::createFromSpv(this, spvFilePaths);
+	auto pShader = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
 	
 	pipelineBuilder.shaderStages.clear();
 	pipelineBuilder.shaderStages.emplace_back(
@@ -843,9 +921,10 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 }
 
 void VulkanEngine::loadModel() {
+
 	//meshes.emplace("viking_room", Mesh::loadFromObj(this, "assets/models/viking_room.obj"));
-	meshes.emplace("dragon", Mesh::loadFromObj(this, "assets/models/dragon.obj"));
-	meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj")); 
+	//meshes.emplace("dragon", Mesh::loadFromObj(this, "assets/models/dragon.obj"));
+	//meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj")); 
 }
 
 void VulkanEngine::createUniformBuffers() {
@@ -1034,19 +1113,20 @@ void VulkanEngine::createCommandBuffers() {
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &frameData[i].sceneDescriptorSet, 0, nullptr);
 
 			//only bind the pipeline if it doesnt match with the already bound one
-			if (object.material != lastMaterial) {
-
-				vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipeline);
-				lastMaterial = object.material;
-
-				//if (!(object.material->textureArrayIndex.empty())) {
-					//for (auto [name, index] : object.material->textureArrayIndex) {
-						//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &loadedTextures[index]->descriptorSet, 0, nullptr);
-					//}			
-				//}
-			}
+			
 			//only bind the mesh if its a different one from last bind
 			if (object.mesh != lastMesh) {
+				if (object.mesh->pMaterial != lastMaterial) {
+
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.mesh->pMaterial->pipeline);
+					lastMaterial = object.mesh->pMaterial;
+
+					//if (!(object.material->textureArrayIndex.empty())) {
+						//for (auto [name, index] : object.material->textureArrayIndex) {
+							//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &loadedTextures[index]->descriptorSet, 0, nullptr);
+						//}			
+					//}
+				}
 				//bind the mesh vertex buffer with offset 0
 				VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
 				VkDeviceSize offsets[] = { 0 };
@@ -1098,15 +1178,15 @@ void VulkanEngine::initScene() {
 	renderables.clear();
 
 	RenderObject viking;
-	viking.mesh = meshes["dragon"];
-	viking.material = materials["dragon"];
+	//viking.mesh = meshes["dragon"];
+	//viking.material = materials["dragon"];
 	viking.transformMatrix = glm::mat4{ 1.0f };
 
 	renderables.emplace_back(viking);
 
 	RenderObject skybox;
-	skybox.mesh = meshes["skybox"];
-	skybox.material = materials["env_light"];
+	//skybox.mesh = meshes["skybox"];
+	//skybox.material = materials["env_light"];
 	skybox.transformMatrix = glm::mat4{ 1.0f };
 
 	renderables.emplace_back(skybox);

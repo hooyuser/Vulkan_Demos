@@ -6,9 +6,6 @@
 #include <string>
 
 
-
-
-
 namespace engine {
 	std::vector<char> readFile(const std::string& filename);
 
@@ -30,9 +27,7 @@ namespace engine {
 
 		Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules);
 
-		~Shader();
-
-		static ShaderPtr createFromSpv(VulkanEngine* engine, Matrix<char> auto const& spvFilePaths) {
+		static ShaderPtr createFromSpv(VulkanEngine* engine, Matrix<char> auto const&& spvFilePaths) {
 			std::vector<ShaderModule> shaderModuleVector;
 			for (auto const& spvFilePath : spvFilePaths) {
 				auto spvCode = readFile(spvFilePath);

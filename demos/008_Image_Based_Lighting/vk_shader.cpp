@@ -32,12 +32,4 @@ namespace engine {
 
 	Shader::Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules): device(device), shaderModules(shaderModules){}
 
-	Shader::~Shader() {
-		//for (auto& it : shaderModules) {
-		//	if (it.shader) {
-		//		vkDestroyShaderModule(device, it.shader, nullptr);
-		//		it.shader = VK_NULL_HANDLE;
-		//	}
-		//}
-	}
 }
