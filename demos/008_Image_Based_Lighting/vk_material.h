@@ -35,11 +35,13 @@ namespace engine {
 	public:
 		ShaderPtr pShaders;
 		PbrParameters paras;
-		ShaderFlagBits shaderFlagBits = PBR;
+		//ShaderFlagBits shaderFlagBits = PBR;
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 		std::unordered_map<std::string, int> textureArrayIndex;
 		//VkDescriptorSet textureSet = VK_NULL_HANDLE;
+
+
 		inline Material() {}
 		inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
 		}

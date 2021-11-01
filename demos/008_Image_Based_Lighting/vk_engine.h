@@ -128,7 +128,6 @@ public:
 	VkDescriptorSetLayout texSetLayout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
-	std::unordered_map<ShaderFlagBits, VkPipeline> meshPipelines;
 	VkPipeline envPipeline;
 
 	VkCommandPool commandPool;
@@ -140,8 +139,6 @@ public:
 
 	std::unordered_map<std::string, MaterialPtr> materials;
 	std::vector<MaterialPtr> loadedMaterials;
-	//MaterialPtr envMaterial;
-	//std::unordered_map<std::string, MeshPtr> meshes;
 	std::vector<MeshPtr> loadedMeshes;
 	std::vector<TexturePtr> loadedTexture2Ds;
 	std::vector<TexturePtr> loadedTextureCubemaps;

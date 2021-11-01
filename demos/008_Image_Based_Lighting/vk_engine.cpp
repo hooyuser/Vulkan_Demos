@@ -496,7 +496,7 @@ void VulkanEngine::parseMaterialInfo(){
 
 		for (auto& glTFMaterial : glTFModel.materials) {
 			auto material = std::make_shared<engine::Material>();
-			material->shaderFlagBits = PBR;
+			//material->shaderFlagBits = PBR;
 			material->pShaders = pbrShader;
 
 			material->paras.baseColorRed = glTFMaterial.pbrMetallicRoughness.baseColorFactor[0];
@@ -510,7 +510,7 @@ void VulkanEngine::parseMaterialInfo(){
 				material->paras.baseColorTextureID = baseColorTextureID;
 			}
 			loadedMaterials.emplace_back(material);
-			meshPipelines.try_emplace(material->shaderFlagBits, VK_NULL_HANDLE);
+			//meshPipelines.try_emplace(glTFMaterial.name, VK_NULL_HANDLE);
 			materials.try_emplace(glTFMaterial.name, std::move(material));
 		}
 
@@ -658,8 +658,6 @@ void VulkanEngine::createMeshPipeline() {
 
 	for (auto& material: loadedMaterials) {
 
-		auto flagBit = material->shaderFlagBits;
-
 		/*if (tempMeshPipelines.contains(flagBit)) {
 
 			pipelineBuilder.shaderStages.clear();
@@ -679,16 +677,16 @@ void VulkanEngine::createMeshPipeline() {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
-		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, meshPipelines[flagBit]);
+		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, material->pipeline);
 
 		swapChainDeletionQueue.push_function([=]() {
-			vkDestroyPipeline(device, meshPipelines[flagBit], nullptr);
+			vkDestroyPipeline(device, material->pipeline, nullptr);
 			});		
 
 		//tempMeshPipelines.erase(material->shaderFlagBits);
 		//}
 		material->pipelineLayout = meshPipelineLayout;
-		material->pipeline = meshPipelines[flagBit];
+		//material->pipeline = meshPipelines[flagBit];
 	}
 
 	swapChainDeletionQueue.push_function([=]() {
