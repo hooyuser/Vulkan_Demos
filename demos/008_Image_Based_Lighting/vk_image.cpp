@@ -7,6 +7,17 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 
+#if defined(_WIN32)
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#endif
+
+#define TINYEXR_USE_THREAD 1
+#define TINYEXR_USE_OPENMP 1
+#define TINYEXR_IMPLEMENTATION
+#include <tinyexr.h>
+
 namespace vk_init {
 	VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels,
 		VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
@@ -476,9 +487,27 @@ namespace engine {
 		int texWidth, texHeight, texChannels;
 		float* pixels[6];
 		for (int i = 0; i < 6; i++) {
-			pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
-			if (!pixels[i]) {
-				throw std::runtime_error("failed to load texture image!");
+			std::string extensionName = filePaths[i].substr(filePaths[i].find_last_of(".") + 1);
+			if (extensionName == "hdr") { // hdr layout: r8g8b8e8(32-bit)
+				pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
+				if (!pixels[i]) {
+					throw std::runtime_error("Error occurs when loading hdr!");
+				}
+			}
+			else if (extensionName == "exr") {
+				const char* err;
+				int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, filePaths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
+
+				if (ret != TINYEXR_SUCCESS) {
+					if (err) {
+						printf("err: %s\n", err);
+						FreeEXRErrorMessage(err);
+						throw std::runtime_error("Error occurs when loading exr!");
+					}
+				}
+			}
+			else {
+				throw std::runtime_error("Failed to load texture image! Unsupported image format.");
 			}
 		}
 

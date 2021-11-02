@@ -609,49 +609,49 @@ void VulkanEngine::parseMaterialInfo(){
 			"assets/textures/HDRi/output_neg_z.hdr"
 		],
 		"irradianceMapPaths": [
-			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_x.hdr",
-			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_x.hdr",
-			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_y.hdr",
-			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_y.hdr",
-			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_z.hdr",
-			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_z.hdr"
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_x.exr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_x.exr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_y.exr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_y.exr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_z.exr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_z.exr"
 		],
 		"prefilteredMapPaths": [
 			[	
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_z.hdr",
-				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_z.hdr"
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_x.exr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_x.exr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_y.exr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_y.exr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_z.exr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_z.exr"
 			], [
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_z.hdr",
-				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_z.hdr"
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_x.exr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_x.exr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_y.exr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_y.exr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_z.exr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_z.exr"
 			], [
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_z.hdr",
-				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_z.hdr"
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_x.exr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_x.exr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_y.exr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_y.exr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_z.exr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_z.exr"
 			], [
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_z.hdr",
-				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_z.hdr"
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_x.exr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_x.exr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_y.exr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_y.exr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_z.exr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_z.exr"
 			], [
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_x.hdr",
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_y.hdr",
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_z.hdr",
-				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_z.hdr"
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_x.exr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_x.exr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_y.exr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_y.exr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_z.exr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_z.exr"
 			]
 		],
 		"BRDF_2D_LUT": "assets/textures/HDRi/BRDF_2D_LUT/BRDF_2D_LUT.png"
@@ -670,6 +670,10 @@ void VulkanEngine::parseMaterialInfo(){
 		envMat->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
 		envMat->paras.baseColorTextureID = loadedTextureCubemaps.size();
 		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePaths"].get<std::vector<std::string>>()));
+		for (auto& mat : loadedMaterials) {
+			mat->paras.irradianceMapId = loadedTextureCubemaps.size();
+		}
+		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
 	}	
 
 	for (auto& mat : loadedMaterials) {
