@@ -21,6 +21,9 @@ struct Pbr {
 	float baseColorRed = 1.0;
 	float baseColorGreen = 0.0;
 	float baseColorBlue = 1.0;
+	int metallicRoughnessTextureId = -1;
+	float metalnessFactor = 0.0;
+	float roughnessFactor = 0.4;
 
 	REFLECT(Pbr,
 		textureCubemapArraySize,
@@ -35,7 +38,10 @@ struct Pbr {
 		baseColorTextureID,
 		baseColorRed,
 		baseColorGreen,
-		baseColorBlue)
+		baseColorBlue,
+		metallicRoughnessTextureId,
+		metalnessFactor,
+		roughnessFactor)
 };
 
 struct HDRi {

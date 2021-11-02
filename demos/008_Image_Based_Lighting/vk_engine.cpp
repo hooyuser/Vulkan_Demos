@@ -509,13 +509,12 @@ void VulkanEngine::parseMaterialInfo(){
 			paras.baseColorRed = glTFMaterial.pbrMetallicRoughness.baseColorFactor[0];
 			paras.baseColorGreen = glTFMaterial.pbrMetallicRoughness.baseColorFactor[1];
 			paras.baseColorBlue = glTFMaterial.pbrMetallicRoughness.baseColorFactor[2];
-
-			auto baseColorTextureID = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
-			if (baseColorTextureID >= 0) {
-				//material->paras.pbr.useBaseColorTexture = true;
-				//material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size()); deprecate
-				paras.baseColorTextureID = baseColorTextureID;
-			}
+			paras.baseColorTextureID = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
+		
+			paras.metalnessFactor = glTFMaterial.pbrMetallicRoughness.metallicFactor;
+			paras.roughnessFactor = glTFMaterial.pbrMetallicRoughness.roughnessFactor;
+			paras.metallicRoughnessTextureId = glTFMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
+			
 			loadedMaterials.emplace_back(material);
 			//meshPipelines.try_emplace(glTFMaterial.name, VK_NULL_HANDLE);
 			materials.try_emplace(glTFMaterial.name, std::move(material));
