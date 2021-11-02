@@ -2,8 +2,10 @@
 
 #include "vk_types.h"
 #include "vk_buffer.h"
+#include "vk_material.h"
 #include <glm/vec3.hpp>
 #include <vector>
+#include <variant>
 
 namespace tinygltf {
     class Model;
@@ -25,9 +27,19 @@ struct Vertex {
 };
 
 namespace engine {
-    class Material;
-    using MaterialPtr = std::shared_ptr<Material>;
+    //template <typename ParaT> class Material;
+    //struct Pbr;
+    //struct HDRi;
+    //using PbrMaterial = Material<Pbr>;
+    //using HDRiMaterial = Material<HDRi>;
+    //using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+    //using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
 
+    //using MaterialV = std::variant<PbrMaterial, HDRiMaterial>;
+    //using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
+
+
+    //class MaterialPtrV;
 
     class Mesh;
     using MeshPtr = std::shared_ptr<Mesh>;
@@ -37,7 +49,7 @@ namespace engine {
         std::vector<uint32_t> _indices;
         BufferPtr pVertexBuffer;
         BufferPtr pIndexBuffer;
-        MaterialPtr pMaterial;
+        MaterialPtrV pMaterial;
 
         static MeshPtr createFromObj(const char* filename);
         static MeshPtr loadFromObj(VulkanEngine* engine, const char* filename);

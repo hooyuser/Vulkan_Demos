@@ -76,12 +76,52 @@ public:
 
 	PipelineBuilder(VulkanEngine* engine);
 
-	void setShaderStages(MaterialPtr pMaterial);
+	template<typename ParaT>
+	void setShaderStages(std::shared_ptr<engine::Material<ParaT>> pMaterial) {
+		shaderStages.clear();
+		for (auto shaderModule : pMaterial->pShaders->shaderModules) {
+			if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
+				constexpr auto paraNum = ParaT::Class::TotalFields;
+				specializationMapEntries.resize(paraNum);
+				for (auto [i, offset] = std::tuple{ (size_t)0, (uint32_t)0 }; i < paraNum; i++) {
+					ParaT::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
+						specializationMapEntries[i].constantID = i;
+						specializationMapEntries[i].offset = offset;
+						specializationMapEntries[i].size = sizeof(value);
+						offset += sizeof(value);
+						});
+				}
+
+				specializationInfo.mapEntryCount = paraNum;
+				specializationInfo.pMapEntries = specializationMapEntries.data();
+				specializationInfo.dataSize = sizeof(ParaT);
+				specializationInfo.pData = &pMaterial->paras;
+
+				VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+
+				info.pNext = nullptr;
+				info.stage = shaderModule.stage;
+				info.module = shaderModule.shader;
+				info.pName = "main";
+				info.pSpecializationInfo = &specializationInfo;
+
+				shaderStages.emplace_back(std::move(info));
+			}
+			else {
+				VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+
+				info.pNext = nullptr;
+				info.stage = shaderModule.stage;
+				info.module = shaderModule.shader;
+				info.pName = "main";
+
+				shaderStages.emplace_back(std::move(info));
+			}
+		}
+	}
 
 	void buildPipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 };
-
-
 
 
 struct RenderObject {
@@ -137,8 +177,8 @@ public:
 
 	std::vector<RenderObject> renderables;
 
-	std::unordered_map<std::string, MaterialPtr> materials;
-	std::vector<MaterialPtr> loadedMaterials;
+	std::unordered_map<std::string, engine::MaterialPtrV> materials;
+	std::vector<engine::PbrMaterialPtr> loadedMaterials;
 	std::vector<MeshPtr> loadedMeshes;
 	std::vector<TexturePtr> loadedTexture2Ds;
 	std::vector<TexturePtr> loadedTextureCubemaps;
@@ -286,15 +326,17 @@ public:
 
 	void setCamera();
 
-	inline MaterialPtr createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
+	/*inline engine::MaterialPtrV createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
 	{
 		auto pMat = std::make_shared<engine::Material>(pipeline, layout);
 		materials[name] = pMat;
 		return materials[name];
-	}
+	}*/
 
 	void createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
 };
+
+
 
 
 

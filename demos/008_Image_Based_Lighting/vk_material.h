@@ -1,21 +1,54 @@
 #pragma once
 #include "vk_types.h"
 #include "Reflect.h"
+#include <variant>
 #include <string>
 
 using namespace Reflect;
 
-struct PbrParameters {
-	int texture2DArraySize = 0;
-	int textureCubemapArraySize = 0;
-	VkBool32 useBaseColorTexture = false;
+struct Pbr {
+	int textureCubemapArraySize = 1;
+	int irradianceMapId = 0;
+	int brdfLUTId = 0;
+	int prefilteredMap20Id = 0;
+	int prefilteredMap40Id = 0;
+	int prefilteredMap60Id = 0;
+	int prefilteredMap80Id = 0;
+	int prefilteredMap100Id = 0;
+
+	int texture2DArraySize = 1;
 	int baseColorTextureID = -1;
 	float baseColorRed = 1.0;
-	float baseColorGreen = 1.0;
+	float baseColorGreen = 0.0;
 	float baseColorBlue = 1.0;
 
-	REFLECT(PbrParameters, texture2DArraySize, textureCubemapArraySize, useBaseColorTexture, baseColorTextureID, baseColorRed, baseColorGreen, baseColorBlue)
+	REFLECT(Pbr,
+		textureCubemapArraySize,
+		irradianceMapId,
+		brdfLUTId,
+		prefilteredMap20Id,
+		prefilteredMap40Id,
+		prefilteredMap60Id,
+		prefilteredMap80Id,
+		prefilteredMap100Id,
+		texture2DArraySize,
+		baseColorTextureID,
+		baseColorRed,
+		baseColorGreen,
+		baseColorBlue)
 };
+
+struct HDRi {
+
+	int textureCubemapArraySize = 0;
+	int baseColorTextureID = -1;
+	
+	REFLECT(HDRi,
+		textureCubemapArraySize, 
+		baseColorTextureID)
+};
+
+
 
 namespace engine {
 	class Shader;
@@ -31,10 +64,14 @@ namespace engine {
 	//};
 
 	using ShaderPtr = std::shared_ptr<Shader>;
+
+	
+
+	template <typename ParaT>
 	class Material {
 	public:
 		ShaderPtr pShaders;
-		PbrParameters paras;
+		ParaT paras;
 		//ShaderFlagBits shaderFlagBits = PBR;
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -42,11 +79,20 @@ namespace engine {
 		//VkDescriptorSet textureSet = VK_NULL_HANDLE;
 
 
-		inline Material() {}
-		inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
-		}
+		//inline Material() {}
+		//inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
+		//}
 	};
+
+	
+	using PbrMaterial = Material<Pbr>;
+	using HDRiMaterial = Material<HDRi>;
+	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
+
+	using MaterialV = std::variant<PbrMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
-using MaterialPtr = std::shared_ptr<engine::Material>;
+
 

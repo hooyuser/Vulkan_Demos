@@ -18,6 +18,8 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
+using namespace engine;
+
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
@@ -37,6 +39,8 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
+
+
 
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -95,6 +99,8 @@ void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int 
 	auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
 	app->framebufferResized = true;
 }
+
+
 
 void VulkanEngine::initVulkan() {
 	createInstance();
@@ -175,7 +181,7 @@ void VulkanEngine::recreateSwapChain() {
 	createDescriptorPool();
 	createDescriptorSets();
 	createGraphicsPipeline();
-	initScene();
+	//initScene();
 	createCommandBuffers();
 	setCamera();
 
@@ -495,19 +501,20 @@ void VulkanEngine::parseMaterialInfo(){
 		auto pbrShader = engine::Shader::createFromSpv(this, std::move(shaderFilePaths));
 
 		for (auto& glTFMaterial : glTFModel.materials) {
-			auto material = std::make_shared<engine::Material>();
+			auto material = std::make_shared<PbrMaterial>();
 			//material->shaderFlagBits = PBR;
 			material->pShaders = pbrShader;
+			auto& paras = material->paras;
 
-			material->paras.baseColorRed = glTFMaterial.pbrMetallicRoughness.baseColorFactor[0];
-			material->paras.baseColorGreen = glTFMaterial.pbrMetallicRoughness.baseColorFactor[1];
-			material->paras.baseColorBlue = glTFMaterial.pbrMetallicRoughness.baseColorFactor[2];
+			paras.baseColorRed = glTFMaterial.pbrMetallicRoughness.baseColorFactor[0];
+			paras.baseColorGreen = glTFMaterial.pbrMetallicRoughness.baseColorFactor[1];
+			paras.baseColorBlue = glTFMaterial.pbrMetallicRoughness.baseColorFactor[2];
 
 			auto baseColorTextureID = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
 			if (baseColorTextureID >= 0) {
-				material->paras.useBaseColorTexture = true;
+				//material->paras.pbr.useBaseColorTexture = true;
 				//material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size()); deprecate
-				material->paras.baseColorTextureID = baseColorTextureID;
+				paras.baseColorTextureID = baseColorTextureID;
 			}
 			loadedMaterials.emplace_back(material);
 			//meshPipelines.try_emplace(glTFMaterial.name, VK_NULL_HANDLE);
@@ -543,19 +550,19 @@ void VulkanEngine::parseMaterialInfo(){
 		}
 	}
 
-	auto objectMaterialInfoJson = R"(
-	{
-		"dragon": {
-			"shaders": ["assets/shaders/pbr.vert.spv", "assets/shaders/pbr.frag.spv"],
-			"paras": {
-				"baseColor": [0.5, 0.1, 0.7]
-			},
-			"textures": {
-				"baseColor": "assets/textures/Dragon_baseColor.png"
-			}
-		}
-	}
-	)"_json;
+	//auto objectMaterialInfoJson = R"(
+	//{
+	//	"dragon": {
+	//		"shaders": ["assets/shaders/pbr.vert.spv", "assets/shaders/pbr.frag.spv"],
+	//		"paras": {
+	//			"baseColor": [0.5, 0.1, 0.7]
+	//		},
+	//		"textures": {
+	//			"baseColor": "assets/textures/Dragon_baseColor.png"
+	//		}
+	//	}
+	//}
+	//)"_json;
 
 	//for (auto& [name, matInfo] : objectMaterialInfoJson.items()) {
 
@@ -593,31 +600,93 @@ void VulkanEngine::parseMaterialInfo(){
 	auto envMaterialInfoJson = R"(
 	{
 		"type": "cubemap",
-		"filePath": [
+		"filePaths": [
 			"assets/textures/HDRi/output_pos_x.hdr",
 			"assets/textures/HDRi/output_neg_x.hdr",
 			"assets/textures/HDRi/output_pos_y.hdr",
 			"assets/textures/HDRi/output_neg_y.hdr",
 			"assets/textures/HDRi/output_pos_z.hdr",
 			"assets/textures/HDRi/output_neg_z.hdr"
-		]
+		],
+		"irradianceMapPaths": [
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_x.hdr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_x.hdr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_y.hdr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_y.hdr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_pos_z.hdr",
+			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_z.hdr"
+		],
+		"prefilteredMapPaths": [
+			[	
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_z.hdr",
+				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_z.hdr"
+			], [
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_pos_z.hdr",
+				"assets/textures/HDRi/prefiltered_map/256@0.4/pre-filtered_map_neg_z.hdr"
+			], [
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_pos_z.hdr",
+				"assets/textures/HDRi/prefiltered_map/128@0.6/pre-filtered_map_neg_z.hdr"
+			], [
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_pos_z.hdr",
+				"assets/textures/HDRi/prefiltered_map/64@0.8/pre-filtered_map_neg_z.hdr"
+			], [
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_x.hdr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_y.hdr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_pos_z.hdr",
+				"assets/textures/HDRi/prefiltered_map/32@1.0/pre-filtered_map_neg_z.hdr"
+			]
+		],
+		"BRDF_2D_LUT": "assets/textures/HDRi/BRDF_2D_LUT/BRDF_2D_LUT.png"
 	}
 	)"_json;
 
+
 	if (envMaterialInfoJson["type"].get<std::string>() == "cubemap") {
-		materials.emplace("env_light", std::make_shared<engine::Material>());
-		materials["env_light"]->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
-		materials["env_light"]->paras.baseColorTextureID = loadedTextureCubemaps.size();
-		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePath"].get<std::vector<std::string>>()));
+		materials.emplace("env_light", std::make_shared<HDRiMaterial>());
+		auto envMat = std::get<HDRiMaterialPtr>(materials["env_light"]);
+		std::array<std::string, 2> spvFilePaths = {
+			"assets/shaders/env_cubemap.vert.spv",
+			"assets/shaders/env_cubemap.frag.spv"
+		};
+		envMat->pShaders = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
+		envMat->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
+		envMat->paras.baseColorTextureID = loadedTextureCubemaps.size();
+		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePaths"].get<std::vector<std::string>>()));
 	}	
 
-	for (auto& [name, mat] : materials) {
+	for (auto& mat : loadedMaterials) {
 		mat->paras.texture2DArraySize = loadedTexture2Ds.size();
 	}
 
 	for (auto& [name, mat] : materials) {
-		mat->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+		std::visit([this](auto& obj) { 
+			obj->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+			}, mat);
 	}
+
+	RenderObject skyBoxObject;
+	skyBoxObject.mesh = Mesh::loadFromObj(this, "assets/obj_models/skybox.obj");
+	skyBoxObject.mesh->pMaterial = std::get<HDRiMaterialPtr>(materials["env_light"]);
+	skyBoxObject.transformMatrix = glm::mat4{ 1.0f };
+	renderables.emplace_back(std::move(skyBoxObject));
 }
 
 void VulkanEngine::createDescriptorSetLayouts() {
@@ -665,6 +734,8 @@ void VulkanEngine::createMeshPipeline() {
 				pipelineBuilder.shaderStages.emplace_back(
 					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader, material->paras));
 			}*/
+
+		//std::visit([](auto& obj) { pipelineBuilder.setShaderStages<decltype(obj)>(obj); }, material);
 		pipelineBuilder.setShaderStages(material);
 
 		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
@@ -697,18 +768,20 @@ void VulkanEngine::createMeshPipeline() {
 
 void VulkanEngine::createEnvLightPipeline() {
 	PipelineBuilder pipelineBuilder(this);
-	std::array<std::string, 2> spvFilePaths = {
+	/*std::array<std::string, 2> spvFilePaths = {
 		"assets/shaders/env_cubemap.vert.spv",
 		"assets/shaders/env_cubemap.frag.spv"
 	};
 	
-	auto pShader = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
+	auto pShader = engine::Shader::createFromSpv(this, std::move(spvFilePaths));*/
+
+	pipelineBuilder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
 	
-	pipelineBuilder.shaderStages.clear();
+	/*pipelineBuilder.shaderStages.clear();
 	pipelineBuilder.shaderStages.emplace_back(
 		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0].shader));
 	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1].shader));
+		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1].shader));*/
 
 	std::array<VkDescriptorSetLayout, 1> envDescriptorSetLayouts = { sceneSetLayout };
 
@@ -730,8 +803,8 @@ void VulkanEngine::createEnvLightPipeline() {
 	//createTexDescriptorSet(loadedTextures["env_cubemap"], textureSet.descriptorSet);
 	//materials["env_cubemap"]->textureSets.emplace("env_cubemap", textureSet);
 
-	materials["env_light"]->pipelineLayout = envPipelineLayout;
-	materials["env_light"]->pipeline = envPipeline;
+	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = envPipelineLayout;
+	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = envPipeline;
 
 	swapChainDeletionQueue.push_function([=]() {
 		vkDestroyPipeline(device, envPipeline, nullptr);
@@ -938,7 +1011,7 @@ void VulkanEngine::createUniformBuffers() {
 }
 
 void VulkanEngine::createDescriptorPool() {
-	const uint32_t descriptorSize = swapChainImages.size() * 20;
+	const uint32_t descriptorSize = swapChainImages.size() * 100;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
@@ -1100,7 +1173,7 @@ void VulkanEngine::createCommandBuffers() {
 		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		MeshPtr lastMesh = nullptr;
-		MaterialPtr lastMaterial = nullptr;
+		MaterialPtrV lastMaterial;
 
 		auto cmd = commandBuffers[i];
 
@@ -1115,8 +1188,13 @@ void VulkanEngine::createCommandBuffers() {
 			//only bind the mesh if its a different one from last bind
 			if (object.mesh != lastMesh) {
 				if (object.mesh->pMaterial != lastMaterial) {
-
-					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.mesh->pMaterial->pipeline);
+					if (std::holds_alternative<PbrMaterialPtr>(object.mesh->pMaterial)) {
+						vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<PbrMaterialPtr>(object.mesh->pMaterial)->pipeline);
+					}
+					else if (std::holds_alternative<HDRiMaterialPtr>(object.mesh->pMaterial)) {
+						vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<HDRiMaterialPtr>(object.mesh->pMaterial)->pipeline);
+					}
+					//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.mesh->pMaterial->pipeline);
 					lastMaterial = object.mesh->pMaterial;
 
 					//if (!(object.material->textureArrayIndex.empty())) {
@@ -1537,46 +1615,6 @@ void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& 
 	}
 }
 
-void PipelineBuilder::setShaderStages(MaterialPtr pMaterial) {
-	shaderStages.clear();
-	for (auto shaderModule : pMaterial->pShaders->shaderModules) {
-		if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
-			constexpr auto paraNum = PbrParameters::Class::TotalFields;
-			specializationMapEntries.resize(paraNum);
-			for (auto [i, offset] = std::tuple{ (size_t)0, (uint32_t)0 }; i < paraNum; i++) {
-				PbrParameters::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
-					specializationMapEntries[i].constantID = i;
-					specializationMapEntries[i].offset = offset;
-					specializationMapEntries[i].size = sizeof(value);
-					offset += sizeof(value);
-					});
-			}
-						
-			specializationInfo.mapEntryCount = paraNum;
-			specializationInfo.pMapEntries = specializationMapEntries.data();
-			specializationInfo.dataSize = sizeof(PbrParameters);
-			specializationInfo.pData = &pMaterial->paras;
 
-			VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 
-			info.pNext = nullptr;
-			info.stage = shaderModule.stage;
-			info.module = shaderModule.shader;
-			info.pName = "main";
-			info.pSpecializationInfo = &specializationInfo;
-
-			shaderStages.emplace_back(std::move(info));
-		}
-		else {
-			VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-
-			info.pNext = nullptr;
-			info.stage = shaderModule.stage;
-			info.module = shaderModule.shader;
-			info.pName = "main";
-
-			shaderStages.emplace_back(std::move(info));
-		}
-	}
-}
 
