@@ -673,6 +673,12 @@ void VulkanEngine::parseMaterialInfo(){
 			mat->paras.irradianceMapId = loadedTextureCubemaps.size();
 		}
 		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
+
+		for (auto& mat : loadedMaterials) {
+			mat->paras.brdfLUTId = loadedTexture2Ds.size();
+		}
+		loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>()));
+	
 	}	
 
 	for (auto& mat : loadedMaterials) {
@@ -694,7 +700,7 @@ void VulkanEngine::parseMaterialInfo(){
 
 void VulkanEngine::createDescriptorSetLayouts() {
 
-	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 0);
+	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 	auto texture2DArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
 	auto cubemapArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
 	
@@ -727,6 +733,17 @@ void VulkanEngine::createMeshPipeline() {
 	PipelineBuilder pipelineBuilder(this);
 
 	//auto tempMeshPipelines = meshPipelines;
+	std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
+
+	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
+
+	if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create pipeline layout!");
+	}
+
+	swapChainDeletionQueue.push_function([=]() {
+		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
+		});
 
 	for (auto& material: loadedMaterials) {
 
@@ -743,14 +760,7 @@ void VulkanEngine::createMeshPipeline() {
 
 		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
-
-		VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
-
-		if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create pipeline layout!");
-		}
-
+		
 		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, material->pipeline);
 
 		swapChainDeletionQueue.push_function([=]() {
@@ -763,28 +773,14 @@ void VulkanEngine::createMeshPipeline() {
 		//material->pipeline = meshPipelines[flagBit];
 	}
 
-	swapChainDeletionQueue.push_function([=]() {
-		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
-		});
+	
 
 }
 
 void VulkanEngine::createEnvLightPipeline() {
 	PipelineBuilder pipelineBuilder(this);
-	/*std::array<std::string, 2> spvFilePaths = {
-		"assets/shaders/env_cubemap.vert.spv",
-		"assets/shaders/env_cubemap.frag.spv"
-	};
-	
-	auto pShader = engine::Shader::createFromSpv(this, std::move(spvFilePaths));*/
 
 	pipelineBuilder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
-	
-	/*pipelineBuilder.shaderStages.clear();
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, pShader->shaderModules[0].shader));
-	pipelineBuilder.shaderStages.emplace_back(
-		vkinit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_FRAGMENT_BIT, pShader->shaderModules[1].shader));*/
 
 	std::array<VkDescriptorSetLayout, 1> envDescriptorSetLayouts = { sceneSetLayout };
 
@@ -797,14 +793,6 @@ void VulkanEngine::createEnvLightPipeline() {
 	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
-
-	//createMaterial(envPipeline, envPipelineLayout, "env_cubemap");
-
-	//engine::TextureSet textureSet("env_cubemap");
-	
-
-	//createTexDescriptorSet(loadedTextures["env_cubemap"], textureSet.descriptorSet);
-	//materials["env_cubemap"]->textureSets.emplace("env_cubemap", textureSet);
 
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = envPipelineLayout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = envPipeline;
@@ -1282,6 +1270,7 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 	ubo.view = camera.viewMatrix();
 	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
 	ubo.proj = camera.projMatrix();
+	ubo.pos = camera.position;
 	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 	//ubo.proj[1][1] *= -1;

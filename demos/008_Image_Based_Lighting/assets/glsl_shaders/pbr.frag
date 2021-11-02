@@ -20,13 +20,19 @@ layout (constant_id = 13) const int metallicRoughnessTextureId = -1;
 layout (constant_id = 14) const float metalnessFactor = 0.0;
 layout (constant_id = 15) const float roughnessFactor = 0.4;   
 
-
+layout(set = 0, binding = 0) uniform UniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 pos;
+} ubo;
 
 layout(set = 0, binding = 1) uniform sampler2D textureArray[texture2DArraySize];
 layout(set = 0, binding = 2) uniform samplerCube cubemapArray[textureCubemapArraySize];
 
 layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 normal;
+layout(location = 1) in vec3 fragNormal;
+layout(location = 2) in vec3 fragPos;
 
 layout(location = 0) out vec4 outColor;
 
@@ -47,6 +53,13 @@ void main() {
     }
     vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), baseColor, metalness);
     vec3 F = max(vec3(1.0) - roughness, F0);
-    vec3 diffuse = baseColor * (1.0 - metalness) * F * texture(cubemapArray[irradianceMapId], normal).xyz / PI;
-    outColor = vec4(diffuse, 1.0);
+    vec3 diffuse = baseColor * (1.0 - metalness) * F * texture(cubemapArray[irradianceMapId], fragNormal).xyz / PI;
+
+    float alpha = roughness * roughness;
+
+    vec3 wo = normalize(ubo.pos - fragPos.xyz);
+    vec2 AB = texture(textureArray[brdfLUTId], vec2(dot(wo, fragNormal), alpha)).xy;
+    vec3 specular2 = AB.x * F0 + AB.y;
+
+    outColor = vec4(diffuse + specular2, 1.0);
 }

@@ -483,6 +483,10 @@ namespace engine {
 		return load2DTextureFromHost(engine, pixels, texWidth, texHeight, texChannels, format);
 	}
 
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const std::string& filePath, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+		return load2DTexture(engine, filePath.c_str(), format);
+	}
+
 	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
 		int texWidth, texHeight, texChannels;
 		float* pixels[6];
