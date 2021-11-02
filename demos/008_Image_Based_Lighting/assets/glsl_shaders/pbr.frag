@@ -43,13 +43,15 @@ void main() {
     } else {
         baseColor = vec3(baseColorRed, baseColorGreen, baseColorBlue);
     }
-    float metalness, roughness;
+    float ao, roughness, metalness;
     if(metallicRoughnessTextureId >= 0) {
-        metalness = texture(textureArray[baseColorTextureId], fragTexCoord).x;
+        ao = texture(textureArray[baseColorTextureId], fragTexCoord).x;
+        baseColor *= ao;
         roughness = texture(textureArray[baseColorTextureId], fragTexCoord).y;
+        metalness = texture(textureArray[baseColorTextureId], fragTexCoord).z;
     } else {
-        metalness = metalnessFactor;
         roughness = roughnessFactor;
+        metalness = metalnessFactor;
     }
     vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), baseColor, metalness);
     vec3 F = max(vec3(1.0) - roughness, F0);
