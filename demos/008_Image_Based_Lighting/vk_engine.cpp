@@ -616,7 +616,14 @@ void VulkanEngine::parseMaterialInfo(){
 			"assets/textures/HDRi/irradiance_map/irradiance_map_neg_z.exr"
 		],
 		"prefilteredMapPaths": [
-			[	
+			[
+				"assets/textures/HDRi/output_pos_x.hdr",
+				"assets/textures/HDRi/output_neg_x.hdr",
+				"assets/textures/HDRi/output_pos_y.hdr",
+				"assets/textures/HDRi/output_neg_y.hdr",
+				"assets/textures/HDRi/output_pos_z.hdr",
+				"assets/textures/HDRi/output_neg_z.hdr"
+			], [	
 				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_x.exr",
 				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_neg_x.exr",
 				"assets/textures/HDRi/prefiltered_map/512@0.2/pre-filtered_map_pos_y.exr",
@@ -675,10 +682,14 @@ void VulkanEngine::parseMaterialInfo(){
 		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
 
 		for (auto& mat : loadedMaterials) {
+			mat->paras.prefilteredMapId = loadedTextureCubemaps.size();
+		}
+		loadedTextureCubemaps.emplace_back(engine::Texture::loadPrefilteredMapTexture(this, envMaterialInfoJson["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
+		
+		for (auto& mat : loadedMaterials) {
 			mat->paras.brdfLUTId = loadedTexture2Ds.size();
 		}
-		loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>()));
-	
+		loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>(), false));
 	}	
 
 	for (auto& mat : loadedMaterials) {

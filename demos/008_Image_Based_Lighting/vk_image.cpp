@@ -234,20 +234,20 @@ namespace engine {
 			});
 	}
 
-	void Image::copyFromBuffer(VulkanEngine* engine, VkBuffer buffer) {
+	void Image::copyFromBuffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel) {
 		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
 			VkBufferImageCopy region{};
 			region.bufferOffset = 0;
 			region.bufferRowLength = 0;
 			region.bufferImageHeight = 0;
 			region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			region.imageSubresource.mipLevel = 0;
+			region.imageSubresource.mipLevel = mipLevel;
 			region.imageSubresource.baseArrayLayer = 0;
 			region.imageSubresource.layerCount = layerCount;
 			region.imageOffset = { 0, 0, 0 };
 			region.imageExtent = {
-				width,
-				height,
+				width >> mipLevel,
+				height >> mipLevel,
 				1
 			};
 
@@ -418,6 +418,34 @@ namespace engine {
 		return pTexture;
 	}
 
+	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
+		auto pTexture = std::make_shared<Texture>(engine->device,
+			engine->physicalDevice,
+			width,
+			width,
+			mipLevels,
+			VK_SAMPLE_COUNT_1_BIT,
+			format,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_FILTER_LINEAR);
+		if (imageDescription & 0x00000001) {
+			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->mainDeletionQueue).push_function([=]() {
+				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
+				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImage(engine->device, pTexture->image, nullptr);
+				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
+				});
+		}
+		return pTexture;
+	}
+
 	TexturePtr Texture::createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription) {
 		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(width))) + 1;
 		auto pTexture = std::make_shared<Texture>(engine->device,
@@ -449,7 +477,37 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/){
+	TexturePtr Texture::createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
+		auto pTexture = std::make_shared<Texture>(engine->device,
+			engine->physicalDevice,
+			width,
+			width,
+			mipLevels,
+			VK_SAMPLE_COUNT_1_BIT,
+			format,
+			VK_IMAGE_TILING_OPTIMAL,
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_FILTER_LINEAR,
+			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+			6);
+		if (imageDescription & 0x00000001) {
+			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->mainDeletionQueue).push_function([=]() {
+				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
+				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImage(engine->device, pTexture->image, nullptr);
+				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
+				});
+		}
+		return pTexture;
+	}
+
+	TexturePtr Texture::load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/){
 		
 		VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * texChannels;
 		
@@ -460,7 +518,14 @@ namespace engine {
 			TEMP_BIT);
 		pStagingBuffer->copyFromHost(hostPixels);
 
-		auto pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT);
+		engine::TexturePtr pTexture;
+
+		if (enableMipmap) {
+			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT);
+		}
+		else {
+			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT, 1);
+		}
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -468,23 +533,25 @@ namespace engine {
 
 		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
+
 		pTexture->generateMipmaps(engine);
+		
 
 		return pTexture;
 	} 
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		//VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * 4;
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
 		}
-		return load2DTextureFromHost(engine, pixels, texWidth, texHeight, texChannels, format);
+		return load2DTextureFromHost(engine, pixels, texWidth, texHeight, texChannels, enableMipmap, format);
 	}
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const std::string& filePath, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
-		return load2DTexture(engine, filePath.c_str(), format);
+	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+		return load2DTexture(engine, filePath.c_str(), enableMipmap, format);
 	}
 
 	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
@@ -542,6 +609,91 @@ namespace engine {
 
 		pTexture->generateMipmaps(engine);
 
+		return pTexture;
+	}
+
+	TexturePtr Texture::loadPrefilteredMapTexture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers) {
+
+		auto pTexture = std::make_shared<engine::Texture>();
+
+		for (uint32_t mipLevel = 0; mipLevel < filePathLayers.size(); mipLevel++) {
+			auto& filePaths = filePathLayers[mipLevel];
+			int texWidth, texHeight, texChannels;
+			float* pixels[6];
+			for (int i = 0; i < 6; i++) {
+				std::string extensionName = filePaths[i].substr(filePaths[i].find_last_of(".") + 1);
+				if (extensionName == "hdr") { // hdr layout: r8g8b8e8(32-bit)
+					pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
+					if (!pixels[i]) {
+						throw std::runtime_error("Error occurs when loading hdr!");
+					}
+				}
+				else if (extensionName == "exr") {
+					const char* err;
+					int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, filePaths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
+
+					if (ret != TINYEXR_SUCCESS) {
+						if (err) {
+							printf("err: %s\n", err);
+							FreeEXRErrorMessage(err);
+							throw std::runtime_error("Error occurs when loading exr!");
+						}
+					}
+				}
+				else {
+					throw std::runtime_error("Failed to load texture image! Unsupported image format.");
+				}
+			}
+
+			const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
+			VkDeviceSize imageSize = layerSize * 6;
+
+			auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+				imageSize,
+				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				TEMP_BIT);
+
+			void* data;
+			vkMapMemory(engine->device, pStagingBuffer->memory, 0, imageSize, 0, &data);
+			for (int i = 0; i < 6; i++) {
+				memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+				stbi_image_free(pixels[i]);
+			}
+			vkUnmapMemory(engine->device, pStagingBuffer->memory);
+
+			if (mipLevel == 0) {
+				pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, BEFORE_SWAPCHAIN_BIT, filePathLayers.size());
+			}
+
+			pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+			pTexture->copyFromBuffer(engine, pStagingBuffer->buffer, mipLevel);
+		}
+		
+		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+			//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+			VkImageMemoryBarrier barrier{};
+			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+			barrier.image = pTexture->image;
+			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+			barrier.subresourceRange.baseArrayLayer = 0;
+			barrier.subresourceRange.layerCount = pTexture->layerCount;
+			barrier.subresourceRange.baseMipLevel = 0;
+			barrier.subresourceRange.levelCount = filePathLayers.size();
+			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+			barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+			vkCmdPipelineBarrier(commandBuffer,
+				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
+				0, nullptr,
+				0, nullptr,
+				1, &barrier);
+		});
 		return pTexture;
 	}
 }

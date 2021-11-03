@@ -10,12 +10,7 @@ struct Pbr {
 	int textureCubemapArraySize = 1;
 	int irradianceMapId = 0;
 	int brdfLUTId = 0;
-	int prefilteredMap20Id = 0;
-	int prefilteredMap40Id = 0;
-	int prefilteredMap60Id = 0;
-	int prefilteredMap80Id = 0;
-	int prefilteredMap100Id = 0;
-
+	int prefilteredMapId = 0;
 	int texture2DArraySize = 1;
 	int baseColorTextureID = -1;
 	float baseColorRed = 1.0;
@@ -29,11 +24,7 @@ struct Pbr {
 		textureCubemapArraySize,
 		irradianceMapId,
 		brdfLUTId,
-		prefilteredMap20Id,
-		prefilteredMap40Id,
-		prefilteredMap60Id,
-		prefilteredMap80Id,
-		prefilteredMap100Id,
+		prefilteredMapId,
 		texture2DArraySize,
 		baseColorTextureID,
 		baseColorRed,
