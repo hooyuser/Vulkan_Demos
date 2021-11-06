@@ -83,12 +83,12 @@ public:
 			if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
 				constexpr auto paraNum = ParaT::Class::TotalFields;
 				specializationMapEntries.resize(paraNum);
-				for (auto [i, offset] = std::tuple{ (size_t)0, (uint32_t)0 }; i < paraNum; i++) {
+
+				for (auto i = 0u; i < paraNum; i++) {
 					ParaT::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
 						specializationMapEntries[i].constantID = i;
-						specializationMapEntries[i].offset = offset;
+						specializationMapEntries[i].offset = field.getOffset();
 						specializationMapEntries[i].size = sizeof(value);
-						offset += sizeof(value);
 						});
 				}
 
