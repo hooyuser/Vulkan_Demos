@@ -1041,11 +1041,11 @@ void VulkanEngine::createDescriptorSets() {
 	allocSceneInfo.descriptorPool = descriptorPool;
 	allocSceneInfo.descriptorSetCount = 1;
 	allocSceneInfo.pSetLayouts = &sceneSetLayout;
-	frameData.resize(swapChainImages.size());
+	sceneDescriptorSets.resize(swapChainImages.size());
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
 		
-		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &frameData[i].sceneDescriptorSet) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &sceneDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 		VkDescriptorBufferInfo uniformBufferInfo{};
@@ -1070,7 +1070,7 @@ void VulkanEngine::createDescriptorSets() {
 		std::array<VkWriteDescriptorSet, 3> descriptorWrites{};
 
 		descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[0].dstSet = frameData[i].sceneDescriptorSet;
+		descriptorWrites[0].dstSet = sceneDescriptorSets[i];
 		descriptorWrites[0].dstBinding = 0;
 		descriptorWrites[0].dstArrayElement = 0;
 		descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -1078,7 +1078,7 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[0].pBufferInfo = &uniformBufferInfo;
 
 		descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[1].dstSet = frameData[i].sceneDescriptorSet;
+		descriptorWrites[1].dstSet = sceneDescriptorSets[i];
 		descriptorWrites[1].dstBinding = 1;
 		descriptorWrites[1].dstArrayElement = 0;
 		descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1086,7 +1086,7 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[1].pImageInfo = textureDescriptors.data();
 
 		descriptorWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		descriptorWrites[2].dstSet = frameData[i].sceneDescriptorSet;
+		descriptorWrites[2].dstSet = sceneDescriptorSets[i];
 		descriptorWrites[2].dstBinding = 2;
 		descriptorWrites[2].dstArrayElement = 0;
 		descriptorWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
@@ -1183,7 +1183,7 @@ void VulkanEngine::createCommandBuffers() {
 		{
 			RenderObject& object = renderables[k];
 
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &frameData[i].sceneDescriptorSet, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
 
 			//only bind the pipeline if it doesnt match with the already bound one
 			
@@ -1229,25 +1229,23 @@ void VulkanEngine::createCommandBuffers() {
 }
 
 void VulkanEngine::createSyncObjects() {
-	imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
-	inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+	frameData.resize(MAX_FRAMES_IN_FLIGHT);
 	imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
 
 	VkSemaphoreCreateInfo semaphoreInfo = vkinit::semaphoreCreateInfo();
 	VkFenceCreateInfo fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-			vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
+		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frameData[i].imageAvailableSemaphore) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frameData[i].renderFinishedSemaphore) != VK_SUCCESS ||
+			vkCreateFence(device, &fenceInfo, nullptr, &frameData[i].inFlightFence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 
 		mainDeletionQueue.push_function([=]() {
-			vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);
-			vkDestroySemaphore(device, imageAvailableSemaphores[i], nullptr);
-			vkDestroyFence(device, inFlightFences[i], nullptr);
+			vkDestroyFence(device, frameData[i].inFlightFence, nullptr);
+			vkDestroySemaphore(device, frameData[i].renderFinishedSemaphore, nullptr);
+			vkDestroySemaphore(device, frameData[i].imageAvailableSemaphore, nullptr);
 			});
 	}
 }
@@ -1290,10 +1288,12 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 }
 
 void VulkanEngine::drawFrame() {
-	vkWaitForFences(device, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+	//drawFrame will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
+
+	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, UINT64_MAX); // begin draw i+2 frame if we've complete rendering at frame i
 
 	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreateSwapChain();
@@ -1306,29 +1306,27 @@ void VulkanEngine::drawFrame() {
 	updateUniformBuffer(imageIndex);
 
 	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);
+		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);  //start to render into this image if we've complete the last rendering of this image
 	}
-	imagesInFlight[imageIndex] = inFlightFences[currentFrame];
+	imagesInFlight[imageIndex] = frameData[currentFrame].inFlightFence;
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-	VkSemaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = waitSemaphores;
+	submitInfo.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore;
 	submitInfo.pWaitDstStageMask = waitStages;
 
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
-	VkSemaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
 	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = signalSemaphores;
+	submitInfo.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
 
-	vkResetFences(device, 1, &inFlightFences[currentFrame]);
+	vkResetFences(device, 1, &frameData[currentFrame].inFlightFence);
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS) {
+	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, frameData[currentFrame].inFlightFence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
 
@@ -1336,7 +1334,7 @@ void VulkanEngine::drawFrame() {
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 
 	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = signalSemaphores;
+	presentInfo.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
 
 	VkSwapchainKHR swapChains[] = { swapChain };
 	presentInfo.swapchainCount = 1;

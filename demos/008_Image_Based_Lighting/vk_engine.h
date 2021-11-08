@@ -30,7 +30,9 @@ struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
 
 struct FrameData {
-	VkDescriptorSet sceneDescriptorSet;
+	VkFence inFlightFence;
+	VkSemaphore imageAvailableSemaphore;
+	VkSemaphore renderFinishedSemaphore;
 };
 
 struct DeletionQueue
@@ -141,7 +143,6 @@ public:
 		cleanup();
 	}
 
-
 	struct GLFWwindow* window{ nullptr };
 
 	VkInstance instance;
@@ -170,13 +171,10 @@ public:
 	VkPipelineLayout envPipelineLayout;
 	VkPipeline envPipeline;
 
-	VkCommandPool commandPool;
-
 	ImagePtr pColorImage;
 	ImagePtr pDepthImage;
 
 	std::vector<RenderObject> renderables;
-
 	std::unordered_map<std::string, engine::MaterialPtrV> materials;
 	std::vector<engine::PbrMaterialPtr> loadedMaterials;
 	std::vector<MeshPtr> loadedMeshes;
@@ -186,17 +184,14 @@ public:
 	std::vector<BufferPtr> pUniformBuffers;
 
 	VkDescriptorPool descriptorPool;
+	std::vector<VkDescriptorSet> sceneDescriptorSets;
 
-	std::vector<FrameData> frameData;
-
+	VkCommandPool commandPool;
 	std::vector<VkCommandBuffer> commandBuffers;
 
-	std::vector<VkSemaphore> imageAvailableSemaphores;
-	std::vector<VkSemaphore> renderFinishedSemaphores;
-	std::vector<VkFence> inFlightFences;
 	std::vector<VkFence> imagesInFlight;
+	std::vector<FrameData> frameData;
 	size_t currentFrame = 0;
-
 	bool framebufferResized = false;
 
 	DeletionQueue mainDeletionQueue;
