@@ -1305,11 +1305,6 @@ void VulkanEngine::drawFrame() {
 
 	updateUniformBuffer(imageIndex);
 
-	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);  //start to render into this image if we've complete the last rendering of this image
-	}
-	imagesInFlight[imageIndex] = frameData[currentFrame].inFlightFence;
-
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -1318,11 +1313,16 @@ void VulkanEngine::drawFrame() {
 	submitInfo.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore;
 	submitInfo.pWaitDstStageMask = waitStages;
 
+	submitInfo.signalSemaphoreCount = 1;
+	submitInfo.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
+
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
 
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
+	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
+		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);  //start to render into this image if we've complete the last rendering of this image
+	}
+	imagesInFlight[imageIndex] = frameData[currentFrame].inFlightFence;  //update the fence of this image
 
 	vkResetFences(device, 1, &frameData[currentFrame].inFlightFence);
 
@@ -1332,14 +1332,10 @@ void VulkanEngine::drawFrame() {
 
 	VkPresentInfoKHR presentInfo{};
 	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
 	presentInfo.waitSemaphoreCount = 1;
 	presentInfo.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
-
-	VkSwapchainKHR swapChains[] = { swapChain };
 	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = swapChains;
-
+	presentInfo.pSwapchains = &swapChain;
 	presentInfo.pImageIndices = &imageIndex;
 
 	result = vkQueuePresentKHR(presentQueue, &presentInfo);
