@@ -1,5 +1,3 @@
-*.h linguist-language=C++
-*.cpp linguist-language=C++
-*.hpp linguist-language=C++
+*/* linguist-detectable
 
 *.txt linguist-vendored
